@@ -179,9 +179,6 @@ GPUFREQ_TRACING_PATH="/sys/kernel/debug/tracing/events/mtk_events"
 FPS=$(dumpsys display | grep -m1 "mDefaultPeak" | awk '{print int($2)}')
 
 # ----------------- HELPER FUNCTIONS -----------------
-log() {
-    echo "$1"
-}
 
 mask_val() {
     touch /data/local/tmp/mount_mask
@@ -200,7 +197,7 @@ write_val() {
     local value="$2"
     if [ -e "$file" ]; then
         chmod +w "$file" 2>/dev/null
-        echo "$value" > "$file" && log "Write : $file → $value" || log "Failed to Write : $file"
+        echo "$value" > "$file"
     fi
 }
 
@@ -270,8 +267,6 @@ additional_gpu_settings() {
         write_val "$GED_PATH/gx_frc_mode" "0"
         write_val "$GED_PATH/gpu_idle" "0"
         write_val "$GED_PATH/gpu_debug_enable" "0"
-    else
-        echo "Unknown $GED_PATH path. Skipping optimization."
     fi
 
     # Additional kernel-ged GPU optimizations
@@ -279,16 +274,12 @@ additional_gpu_settings() {
          write_val "$GED_PATH2/gpu_boost_level" "2"
          # source https://cpu52.com/archives/314.html
          write_val "$GED_PATH2/custom_upbound_gpu_freq" "1"
-    else
-        echo "Unknown $GED_PATH2 path. Skipping optimization."
     fi
     
     # Additional GPU settings for MediaTek ( @Bias_khaliq )
     if [ -d "$PLATFORM_GPU_PATH" ]; then
          write_val "$PLATFORM_GPU_PATH/dvfs_enable" "1"
          write_val "$PLATFORM_GPU_PATH/gpu_busy" "1"
-    else
-        echo "Unknown $PLATFORM_GPU_PATH path. Skipping optimization."
     fi
 }
 
@@ -304,14 +295,10 @@ optimize_gpu_frequency() {
         write_val "$GPUF_PATH/gpufreq_opp_stress_test" "0"
         write_val "$GPUF_PATH/gpufreq_power_dump" "0"
         write_val "$GPUF_PATH/gpufreq_power_limited" "0"
-    else
-        echo "Unknown $GPUF_PATH path. Skipping optimization."
     fi
 
     if [ -d "$GPUF_PATH2" ]; then
         write_val "$GPUF_PATH2/aging_mode" "disable"
-    else
-        echo "Unknown $GPUF_PATH2 path. Skipping optimization."
     fi
 }
 
@@ -325,8 +312,6 @@ optimize_pvr_settings() {
         write_val "$PVR_PATH/EnableFWContextSwitch" "1"
         write_val "$PVR_PATH/gPVRDebugLevel" "0"
         write_val "$PVR_PATH/gpu_dvfs_enable" "1"
-    else
-        echo "Unknown $PVR_PATH path. Skipping optimization."
     fi
 
     # Additional settings power vr apphint
@@ -338,8 +323,6 @@ optimize_pvr_settings() {
         write_val "$PVR_PATH2/TimeCorrClock" "1"
         write_val "$PVR_PATH2/0/DisableFEDLogging" "1"
         write_val "$PVR_PATH2/0/EnableAPM" "0"
-    else
-        echo "Unknown $PVR_PATH2 path. Skipping optimization."
     fi
 }
 
@@ -360,8 +343,6 @@ optimize_adreno_driver() {
         mask_val "0" "$ADRENO_PATH/throttling"
         mask_val "0" "$ADRENO_PATH/fsync_enable"
         mask_val "0" "$ADRENO_PATH/vsync_enable"
-    else
-        echo "Unknown $ADRENO_PATH path. Skipping optimization."
     fi
     
     # Disable AdrenoBoost feature on Adreno GPU
@@ -381,8 +362,6 @@ optimize_mali_driver() {
     # Mali GPU-specific optimizations ( @Bias_khaliq )
     if [ -d "$MALI_PATH" ]; then
          write_val "$MALI_PATH/dvfs_enable" "1"
-    else
-        echo "Unknown $MALI_PATH path. Skipping optimization."
     fi
     
     # Mali gpu scheduling (thx to @MiAzami) 
@@ -419,14 +398,8 @@ final_optimize_gpu() {
               write_val "$KERNEL_FPSGO_PATH/gpu_block_boost" "100"
           elif [ "$num_fields" -eq 3 ]; then
               write_val "$KERNEL_FPSGO_PATH/gpu_block_boost" "60 120 1"
-          else
-              echo "Unknown gpu_block_boost format: $current_val"
           fi
-      else
-          echo "gpu_block_boost node not found."
       fi
-    else
-        echo "Unknown $KERNEL_FPSGO_PATH path. Skipping optimization."
     fi
     
     # disable pvr tracing
@@ -495,9 +468,6 @@ facur_main() {
     VAL_F=$(( (VSYNC_NS * 60) / 100 ))
     VAL_G=$(( -VAL_E ))
     VAL_H=$(( -VAL_F ))
-
-    echo "Detected FPS: $MAX_FPS | VSync: ${VSYNC_NS}ns"
-    echo "Durations (E=$VAL_E, F=$VAL_F, G=$VAL_G, H=$VAL_H)"
 
     for prop in \
         debug.sf.early.app.duration debug.sf.earlyGl.app.duration \
