@@ -163,8 +163,6 @@ MODDIR=${0%/*}
 # ----------------- VARIABLES -----------------
 MALI_PATH="/proc/mali"
 ps_ret="$(ps -Ao pid,args)"
-GPUF_PATH="/proc/gpufreq"
-GPUF_PATH2="/proc/gpufreqv2"
 GED_PATH2="/sys/kernel/debug/ged/hal"
 ADRENO_PATH="/sys/class/kgsl/kgsl-3d0"
 GED_PATH="/sys/module/ged/parameters"
@@ -174,6 +172,9 @@ PLATFORM_GPU_PATH="/sys/devices/platform/gpu"
 ADRENO_PATH3="/sys/module/adreno_idler/parameters"
 KERNEL_FPSGO_PATH="/sys/kernel/debug/fpsgo/common"
 ADRENO_PATH2="/sys/kernel/debug/kgsl/kgsl-3d0/profiling"
+GPUF_PATH="/proc/gpufreq"
+GPUF_PATH2="/proc/gpufreqv2"
+GPU_FREQ_PATH="/proc/gpufreq"
 GPUFREQ_TRACING_PATH="/sys/kernel/debug/tracing/events/mtk_events"
 FPS=$(dumpsys display | grep -m1 "mDefaultPeak" | awk '{print int($2)}')
 
@@ -248,10 +249,7 @@ optimize_gpu_temperature() {
 additional_gpu_settings() {
     # Optimize GPU parameters via GED driver
     if [ -d "$GED_PATH" ]; then
-        write_val "$GED_PATH/gpu_cust_boost_freq" "2000000"
-        write_val "$GED_PATH/gpu_cust_upbound_freq" "2000000"
         write_val "$GED_PATH/ged_smart_boost" "1000"
-        write_val "$GED_PATH/gpu_bottom_freq" "800000"
         write_val "$GED_PATH/boost_upper_bound" "100"
         write_val "$GED_PATH/gx_dfps" "$FPS"
         write_val "$GED_PATH/g_gpu_timer_based_emu" "1"
@@ -275,7 +273,7 @@ additional_gpu_settings() {
     else
         echo "Unknown $GED_PATH path. Skipping optimization."
     fi
-    
+
     # Additional kernel-ged GPU optimizations
     if [ -d "$GED_PATH2" ]; then
          write_val "$GED_PATH2/gpu_boost_level" "2"
@@ -290,18 +288,13 @@ additional_gpu_settings() {
          write_val "$PLATFORM_GPU_PATH/dvfs_enable" "1"
          write_val "$PLATFORM_GPU_PATH/gpu_busy" "1"
     else
-        echo "Unknown $GED_PATH2 path. Skipping optimization."
+        echo "Unknown $PLATFORM_GPU_PATH path. Skipping optimization."
     fi
 }
 
 optimize_gpu_frequency() {
-    # Optimize GPU frequency configurations
-    gpu_freq="$(cat $GPUF_PATH/gpufreq_opp_dump | grep -o 'freq = [0-9]*' | sed 's/freq = //' | sort -nr | head -n 1)"
-        write_val "$GPUF_PATH/gpufreq_opp_freq" "$gpu_freq"
+    # Re-added GPU frequency configurations
     if [ -d "$GPUF_PATH" ]; then
-        for i in $(seq 0 8); do
-            write_val "$GPUF_PATH/limit_table" "$i 0 0"
-        done
         write_val "$GPUF_PATH/limit_table" "1 1 1"
         write_val "$GPUF_PATH/gpufreq_limited_thermal_ignore" "1"
         write_val "$GPUF_PATH/gpufreq_limited_oc_ignore" "1"
@@ -315,18 +308,7 @@ optimize_gpu_frequency() {
         echo "Unknown $GPUF_PATH path. Skipping optimization."
     fi
 
-    # Optimize GPU frequency v2 configurations (Matt Yang)（吟惋兮改)
-    gpu_freq="$(cat $GPUF_PATH2/gpu_working_opp_table | awk '{print $3}' | sed 's/,//g' | sort -nr | head -n 1)"
-	gpu_volt="$(cat $GPUF_PATH2/gpu_working_opp_table | awk -v freq="$freq" '$0 ~ freq {gsub(/.*, volt: /, ""); gsub(/,.*/, ""); print}')"
-	write_val "$GPUF_PATH2/fix_custom_freq_volt" "${gpu_freq} ${gpu_volt}"
     if [ -d "$GPUF_PATH2" ]; then
-        for i in $(seq 0 10); do
-            write_val "$i 0 0" /proc/gpufreqv2/limit_table
-        done
-        # Enable only levels 1–3
-        for i in 1 3; do
-            write_val "$GPUF_PATH2/limit_table" "$i 1 1"
-        done
         write_val "$GPUF_PATH2/aging_mode" "disable"
     else
         echo "Unknown $GPUF_PATH2 path. Skipping optimization."
@@ -382,14 +364,6 @@ optimize_adreno_driver() {
         echo "Unknown $ADRENO_PATH path. Skipping optimization."
     fi
     
-    # Adreno 610 GPU max clock speed set 1114MHz 
-    # (thx to vamper865 & yash5643 from module
-    # AdrenoRenderEngineTweaks)
-    mask_val "1114800000" "$ADRENO_PATH/max_gpuclk"
-    mask_val "1114800000" "$ADRENO_PATH/gpuclk"
-    mask_val "1114" "$ADRENO_PATH/max_clock_mhz"
-    mask_val "1114" "$ADRENO_PATH/gpuclk_mhz"
-    
     # Disable AdrenoBoost feature on Adreno GPU
     mask_val "0" "$ADRENO_PATH/devfreq/adrenoboost"
     
@@ -407,8 +381,6 @@ optimize_mali_driver() {
     # Mali GPU-specific optimizations ( @Bias_khaliq )
     if [ -d "$MALI_PATH" ]; then
          write_val "$MALI_PATH/dvfs_enable" "1"
-         write_val "$MALI_PATH/max_clock" "550000"
-         write_val "$MALI_PATH/min_clock" "100000"
     else
         echo "Unknown $MALI_PATH path. Skipping optimization."
     fi
@@ -463,14 +435,14 @@ final_optimize_gpu() {
             write_val "$pvrtracing" "0"
         fi
     done
-        
-   # disable gpu tracing for mtk
+   
+    # disable gpu tracing for mtk
     write_val "$GPUFREQ_TRACING_PATH/enable" "0"
    
-   # Disable auto voltage scaling for mtk
+    # Disable auto voltage scaling for mtk
     write_val "$GPU_FREQ_PATH/gpufreq_aging_enable" "0"
-    
-   # cpuset configuration
+
+    # cpuset configuration
     write_val "/dev/cpuset/foreground/cpus" "0-3,4-7"
     write_val "/dev/cpuset/foreground/boost/cpus" "4-7"
     write_val "/dev/cpuset/top-app/cpus" "0-7"
