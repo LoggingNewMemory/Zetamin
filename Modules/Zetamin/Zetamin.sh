@@ -224,24 +224,6 @@ change_task_nice() {
 }
 
 # ----------------- OPTIMIZATION SECTIONS -----------------
-optimize_gpu_temperature() {
-    # Adjust GPU and DDR temperature thresholds ( @Bias_khaliq )
-    for THERMAL in /sys/class/thermal/thermal_zone*/type; do
-        if grep -E "gpu|ddr" "$THERMAL" > /dev/null; then
-          for ZONE in "${THERMAL%/*}"/trip_point_*_temp; do
-            CURRENT_TEMP=$(cat "$ZONE")
-            if [ "$CURRENT_TEMP" -lt "90000" ]; then
-              write_val "$ZONE" "95000"
-            fi
-          done
-        fi
-    done
-        
-    # Disable Temperature for Adreno
-    for all_thermal in $(find /sys/devices/soc/*/kgsl/kgsl-3d0/ -name *temp*); do
-        chmod 000 $all_thermal
-    done
-}
 
 additional_gpu_settings() {
     # Optimize GPU parameters via GED driver
@@ -429,7 +411,6 @@ cleanup_memory() {
 
 # ----------------- MAIN EXECUTION -----------------
 main_render() {
-    optimize_gpu_temperature
     additional_gpu_settings
     optimize_gpu_frequency
     optimize_pvr_settings
