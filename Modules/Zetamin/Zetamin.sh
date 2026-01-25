@@ -305,11 +305,6 @@ final_optimize_gpu() {
     write_val "/dev/cpuset/top-app/cpus" "0-7"
 }
 
-cleanup_memory() {
-     write_val "/proc/sys/vm/drop_caches" "3"
-     write_val "/proc/sys/vm/compact_memory" "1"
-}
-
 main_render() {
     additional_gpu_settings
     optimize_gpu_frequency
@@ -318,7 +313,6 @@ main_render() {
     optimize_mali_driver
     optimize_task_cgroup_nice
     final_optimize_gpu
-    cleanup_memory
 }
 
 sync && main_render
