@@ -1,4 +1,8 @@
 #!/system/bin/sh
+
+# As far for this, Zetamin no longer rely on Kazuyoo Celestial Render & Flux
+# But Thank you @Kazuyoo & @Koneko_dev
+
 max_rate=$(cmd display dump 2>/dev/null | grep -Eo 'fps=[0-9.]+' | cut -f2 -d= | sort -nr | head -n1 | cut -d . -f 1)
 
 if [ -n "$max_rate" ] && [ "$max_rate" -gt 60 ]; then
@@ -7,40 +11,22 @@ if [ -n "$max_rate" ] && [ "$max_rate" -gt 60 ]; then
     resetprop ro.surface_flinger.game_default_frame_rate_override "$max_rate"
 fi
 
-###################################
-# Celestial Flinger Flux (@Kzuyoo)
-# Version: 1.9
-# Note: Notification Disabled | No Animation Tweak
-###################################
-#!/system/bin/sh
-#
-# Celestial-Flinger-Flux by the kazuyoo
-# Open-source powered — with appreciation to GL-DP and all contributors.
-# Licensed under the MIT License.
+surface=$(dumpsys SurfaceFlinger)
+latency_out=$(dumpsys SurfaceFlinger --latency 2>/dev/null | head -n 5)
 
-# ----------------- HELPER FUNCTIONS -----------------
-# --- Retrieve SurfaceFlinger & display data ---
-  surface=$(dumpsys SurfaceFlinger)
-  latency_out=$(dumpsys SurfaceFlinger --latency 2>/dev/null | head -n 5)
+FPS=$(dumpsys display | grep -m1 "mDefaultPeak" | awk '{print int($2)}')
 
-# Get FPS from display service
-  FPS=$(dumpsys display | grep -m1 "mDefaultPeak" | awk '{print int($2)}')
+if echo "$latency_out" | grep -Eq '^[0-9]+$|^[0-9]{10,}$'; then
+    ft=$(echo "$latency_out" | head -n1 | grep -oE '[0-9]+')
+else
+    ft=$(echo "$surface" | grep -m1 -E "VSYNC period|vsyncPeriod" | awk '{print $7}' | grep -oE '[0-9]+')
+fi
 
-# Take frame time from VSYNC & latency
-  if echo "$latency_out" | grep -Eq '^[0-9]+$|^[0-9]{10,}$'; then
-      ft=$(echo "$latency_out" | head -n1 | grep -oE '[0-9]+')
-  else
-      ft=$(echo "$surface" | grep -m1 -E "VSYNC period|vsyncPeriod" | awk '{print $7}' | grep -oE '[0-9]+')
-  fi
+app_phase=$(echo "$surface" | grep -m1 "app phase" | awk '{print $3}')
+sf_phase=$(echo "$surface" | grep -m1 "SF phase" | awk '{print $3}')
 
-# Take phase
-  app_phase=$(echo "$surface" | grep -m1 "app phase" | awk '{print $3}')
-  sf_phase=$(echo "$surface" | grep -m1 "SF phase" | awk '{print $3}')
+missed=$(echo "$surface" | grep -m1 "Total missed frame count" | awk '{print $5}')
 
-# Take the total missed frame count
-  missed=$(echo "$surface" | grep -m1 "Total missed frame count" | awk '{print $5}')
-  
-# ----------------- OPTIMIZATION SECTIONS -----------------
 surfaceflinger_autoset() {
   setprop debug.sf.set_idle_timer_ms "$thresh"
   setprop debug.sf.phase_offset_threshold_for_next_vsync_ns $(( (ft/6) + (thresh * 4800) ))
@@ -52,32 +38,25 @@ surfaceflinger_fallback() {
 }
 
 other() {
-# SurfaceFlinger Prime Shader Minimal Optimize
   for i in solid_layers image_layers shadow_layers; do
       setprop debug.sf.prime_shader_cache.$i true
   done
-    
-# Percentage of frame time that's used for CPU work.
+
    setprop debug.hwui.target_cpu_time_percent $(awk -v b=$(cat /proc/sys/kernel/perf_cpu_time_max_percent 2>/dev/null||echo 25) '{n=$1/b;print int(35+(n*15)/(1+n))}' /proc/loadavg)
-   
-# Application FPS synchronization tolerance with screen refresh rate.
+
    setprop debug.sf.frame_rate_multiple_threshold $(awk -v ft=$ft 'BEGIN{printf "%.6f", (ft/1000000000)*(ft<=10000000?0.85:0.75)}')
 }
-  
-# ----------------- MAIN EXECUTION -----------------
+
 main_flux() {
   dumpsys SurfaceFlinger --latency-clear
   sleep 1
-  # --- Adaptive calculation Extended ---
   if [ -n "$ft" ] && [ "$ft" -gt 0 ]; then
-    # Base constant
     if [ "$ft" -le 13000000 ]; then
-        base_const=70   # 90–144Hz
+        base_const=70
     else
-        base_const=72   # 60Hz
+        base_const=72
     fi
 
-    # Core timing
     if [ "$ft" -le 13000000 ]; then
         vspan=$(( ft * 48 / 1000 ))
         early=$(( ft * 261 / 1000 ))
@@ -95,40 +74,22 @@ main_flux() {
     ft=16666667
     base_const=72
 
-    # Core fallback
     vspan=$(( ft * 51 / 1000 ))
     early=$(( ft * 272 / 1000 ))
     late=$(( ft * 655 / 1000 ))
 
-    # Fallback threshold
     thresh=$(( (ft / 1000000) + base_const + 2 ))
 
     surfaceflinger_fallback
   fi
-    set start vsync 
+    set start vsync
     other
 }
 
-# Main Execution & Exit script successfully
- sync && main_flux
+sync && main_flux
 
-#####################################
-# End of Celestial Flinger Flux
-#####################################
-
-###################################
-# Celestial Render FlowX (@Kzuyoo)
-# Version: 1.6G
-# Note: Notification Disabled, Wait boot complete removed
-# Purpose of this is the Render (GPU, etc)
-###################################
-
-# Do NOT assume where your module will be located.
-# ALWAYS use $MODDIR if you need to know where this script
-# and module is placed.
 MODDIR=${0%/*}
 
-# ----------------- VARIABLES -----------------
 MALI_PATH="/proc/mali"
 ps_ret="$(ps -Ao pid,args)"
 GED_PATH2="/sys/kernel/debug/ged/hal"
@@ -145,8 +106,6 @@ GPUF_PATH2="/proc/gpufreqv2"
 GPU_FREQ_PATH="/proc/gpufreq"
 GPUFREQ_TRACING_PATH="/sys/kernel/debug/tracing/events/mtk_events"
 FPS=$(dumpsys display | grep -m1 "mDefaultPeak" | awk '{print int($2)}')
-
-# ----------------- HELPER FUNCTIONS -----------------
 
 mask_val() {
     touch /data/local/tmp/mount_mask
@@ -170,7 +129,6 @@ write_val() {
 }
 
 change_task_cgroup() {
-    # $1:task_name $2:cgroup_name $3:"cpuset"/"stune"
     local comm
     for temp_pid in $(echo "$ps_ret" | grep -i -E "$1" | grep -v "PID" | awk '{print $1}'); do
         for temp_tid in $(ls "/proc/$temp_pid/task/"); do
@@ -181,7 +139,6 @@ change_task_cgroup() {
 }
 
 change_task_nice() {
-    # $1:task_name $2:nice(relative to 120)
     for temp_pid in $(echo "$ps_ret" | grep -i -E "$1" | grep -v "PID" | awk '{print $1}'); do
         for temp_tid in $(ls "/proc/$temp_pid/task/"); do
             renice -n +40 -p "$temp_tid"
@@ -191,10 +148,7 @@ change_task_nice() {
     done
 }
 
-# ----------------- OPTIMIZATION SECTIONS -----------------
-
 additional_gpu_settings() {
-    # Optimize GPU parameters via GED driver
     if [ -d "$GED_PATH" ]; then
         write_val "$GED_PATH/ged_smart_boost" "1000"
         write_val "$GED_PATH/boost_upper_bound" "100"
@@ -219,14 +173,11 @@ additional_gpu_settings() {
         write_val "$GED_PATH/gpu_debug_enable" "0"
     fi
 
-    # Additional kernel-ged GPU optimizations
     if [ -d "$GED_PATH2" ]; then
          write_val "$GED_PATH2/gpu_boost_level" "2"
-         # source https://cpu52.com/archives/314.html
          write_val "$GED_PATH2/custom_upbound_gpu_freq" "1"
     fi
-    
-    # Additional GPU settings for MediaTek ( @Bias_khaliq )
+
     if [ -d "$PLATFORM_GPU_PATH" ]; then
          write_val "$PLATFORM_GPU_PATH/dvfs_enable" "1"
          write_val "$PLATFORM_GPU_PATH/gpu_busy" "1"
@@ -234,7 +185,6 @@ additional_gpu_settings() {
 }
 
 optimize_gpu_frequency() {
-    # Re-added GPU frequency configurations
     if [ -d "$GPUF_PATH" ]; then
         write_val "$GPUF_PATH/limit_table" "1 1 1"
         write_val "$GPUF_PATH/gpufreq_limited_thermal_ignore" "1"
@@ -253,7 +203,6 @@ optimize_gpu_frequency() {
 }
 
 optimize_pvr_settings() {
-    # Adjust PowerVR settings for performance
     if [ -d "$PVR_PATH" ]; then
         write_val "$PVR_PATH/gpu_power" "2"
         write_val "$PVR_PATH/HTBufferSizeInKB" "512"
@@ -264,7 +213,6 @@ optimize_pvr_settings() {
         write_val "$PVR_PATH/gpu_dvfs_enable" "1"
     fi
 
-    # Additional settings power vr apphint
     if [ -d "$PVR_PATH2" ]; then
         write_val "$PVR_PATH2/CacheOpConfig" "1"
         write_val "$PVR_PATH2/CacheOpUMKMThresholdSize" "512"
@@ -277,7 +225,6 @@ optimize_pvr_settings() {
 }
 
 optimize_adreno_driver() {
-    # Additional adreno settings to stabilize the gpu (Matt Yang)（吟惋兮改)
     if [ -d "$ADRENO_PATH" ]; then
         PWRLVL=$(($(cat $ADRENO_PATH/num_pwrlevels) - 1))
         mask_val "$PWRLVL" "$ADRENO_PATH/default_pwrlevel"
@@ -294,27 +241,21 @@ optimize_adreno_driver() {
         mask_val "0" "$ADRENO_PATH/fsync_enable"
         mask_val "0" "$ADRENO_PATH/vsync_enable"
     fi
-    
-    # Disable AdrenoBoost feature on Adreno GPU
+
     mask_val "0" "$ADRENO_PATH/devfreq/adrenoboost"
-    
-    # Disable kgsl profiling
+
     write_val "$ADRENO_PATH2/enable" "0"
-    
-    # Disable adreno idler
+
     write_val "$ADRENO_PATH3/adreno_idler_active" "0"
-    
-    # Touch boost
+
     write_val "/sys/module/msm_performance/parameters/touchboost" "1"
 }
 
 optimize_mali_driver() {
-    # Mali GPU-specific optimizations ( @Bias_khaliq )
     if [ -d "$MALI_PATH" ]; then
          write_val "$MALI_PATH/dvfs_enable" "1"
     fi
-    
-    # Mali gpu scheduling (thx to @MiAzami) 
+
     mali_dir=$(ls -d /sys/devices/platform/soc/*mali*/scheduling 2>/dev/null | head -n 1)
     mali1_dir=$(ls -d /sys/devices/platform/soc/*mali* 2>/dev/null | head -n 1)
     if [ -n "$mali_dir" ]; then
@@ -327,7 +268,6 @@ optimize_mali_driver() {
 }
 
 optimize_task_cgroup_nice() {
-    # thx to (Matt Yang)（吟惋兮改)
     change_task_cgroup "surfaceflinger" "" "cpuset"
     change_task_cgroup "system_server" "foreground" "cpuset"
     change_task_cgroup "netd|allocator" "foreground" "cpuset"
@@ -337,13 +277,11 @@ optimize_task_cgroup_nice() {
 }
 
 final_optimize_gpu() {
-    # Additional kernel-fpsgo GPU optimizations
     if [ -d "$KERNEL_FPSGO_PATH" ]; then
       if [ -f "$KERNEL_FPSGO_PATH/gpu_block_boost" ]; then
           current_val=$(cat "$KERNEL_FPSGO_PATH/gpu_block_boost" 2>/dev/null)
-          # Hitung jumlah angka yang ada di dalamnya
           num_fields=$(echo "$current_val" | awk '{print NF}')
-        
+
           if [ "$num_fields" -eq 1 ]; then
               write_val "$KERNEL_FPSGO_PATH/gpu_block_boost" "100"
           elif [ "$num_fields" -eq 3 ]; then
@@ -351,33 +289,27 @@ final_optimize_gpu() {
           fi
       fi
     fi
-    
-    # disable pvr tracing
+
     for pvrtracing in $(find /sys/kernel/debug/tracing/events/pvr_fence -name 'enable'); do
         if [ -d "/sys/kernel/debug/tracing/events/pvr_fence" ]; then
             write_val "$pvrtracing" "0"
         fi
     done
-   
-    # disable gpu tracing for mtk
+
     write_val "$GPUFREQ_TRACING_PATH/enable" "0"
-   
-    # Disable auto voltage scaling for mtk
+
     write_val "$GPU_FREQ_PATH/gpufreq_aging_enable" "0"
 
-    # cpuset configuration
     write_val "/dev/cpuset/foreground/cpus" "0-3,4-7"
     write_val "/dev/cpuset/foreground/boost/cpus" "4-7"
     write_val "/dev/cpuset/top-app/cpus" "0-7"
 }
 
 cleanup_memory() {
-    # Clean up memory and cache
      write_val "/proc/sys/vm/drop_caches" "3"
      write_val "/proc/sys/vm/compact_memory" "1"
 }
 
-# ----------------- MAIN EXECUTION -----------------
 main_render() {
     additional_gpu_settings
     optimize_gpu_frequency
@@ -389,18 +321,7 @@ main_render() {
     cleanup_memory
 }
 
-# Main Execution & Exit script successfully
 sync && main_render
-
-############################
-# End of Celestial Render
-############################
-
-############################
-# Facur.sh (Surface Flinger Tweaks)
-# By: @Koneko_dev
-# This supposed to be a better one + additional with the Celestial Render Flux
-############################
 
 facur_main() {
     local MAX_FPS
@@ -447,11 +368,6 @@ facur_main() {
     done
 }
 
-# Execute Facur Logic
 sync && facur_main
-
-############################
-# End of Facur.sh
-############################
 
 exit 0
