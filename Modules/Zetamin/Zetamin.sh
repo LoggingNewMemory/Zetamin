@@ -42,43 +42,11 @@ fi
   
 # ----------------- OPTIMIZATION SECTIONS -----------------
 surfaceflinger_autoset() {
-# Set SurfaceFlinger props
-  setprop debug.sf.hwc.min.duration "$vspan"
-  setprop debug.sf.early.app.duration "$early"
-  setprop debug.sf.late.app.duration "$late"
-  setprop debug.sf.early.sf.duration "$early"
-  setprop debug.sf.late.sf.duration "$late"
-  setprop debug.sf.earlyGl.sf.duration "$early"
-  setprop debug.sf.earlyGl.app.duration "$early"
-
   setprop debug.sf.set_idle_timer_ms "$thresh"
   setprop debug.sf.phase_offset_threshold_for_next_vsync_ns $(( (ft/6) + (thresh * 4800) ))
-
-# --- High FPS (60+) ---
-  if [ "$FPS" -gt 60 ]; then
-    setprop debug.sf.early_phase_offset_ns "$early"
-    setprop debug.sf.early_gl_phase_offset_ns "$early"
-    setprop debug.sf.early_app_phase_offset_ns "$early"
-    setprop debug.sf.early_gl_app_phase_offset_ns "$early"
-
-    setprop debug.sf.high_fps_late_app_phase_offset_ns "$late"
-    setprop debug.sf.high_fps_late_sf_phase_offset_ns "$late"
-    setprop debug.sf.high_fps_early_phase_offset_ns "$early"
-    setprop debug.sf.high_fps_early_gl_phase_offset_ns "$early"
-    setprop debug.sf.high_fps_early_app_phase_offset_ns "$early"
-    setprop debug.sf.high_fps_early_gl_app_phase_offset_ns "$early"
-  fi
 }
 
 surfaceflinger_fallback() {
-# Fallback Using Fixed SurfaceFlinger Settings
-  setprop debug.sf.hwc.min.duration "$vspan"
-  setprop debug.sf.early.app.duration "$early"
-  setprop debug.sf.late.app.duration "$late"
-  setprop debug.sf.early.sf.duration "$early"
-  setprop debug.sf.late.sf.duration "$late"
-  setprop debug.sf.earlyGl.sf.duration "$early"
-  setprop debug.sf.earlyGl.app.duration "$early"
   setprop debug.sf.set_idle_timer_ms "$thresh"
   setprop debug.sf.phase_offset_threshold_for_next_vsync_ns $(( (ft/6) + (thresh * 4800) ))
 }
