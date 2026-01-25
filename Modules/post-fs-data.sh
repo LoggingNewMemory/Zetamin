@@ -22,3 +22,10 @@ resetprop debug.gralloc.enable_fb_ubwc 0
 resetprop ro.max.fling_velocity 10000
 resetprop ro.surface_flinger.max_frame_buffer_acquired_buffers 3
 resetprop ro.surface_flinger.max_virtual_display_dimension 1920
+
+# Zetamin
+resetprop renderthread.skia.reduceopstasksplitting true
+resetprop debug.hwui.skip_empty_damage true
+resetprop debug.hwui.use_buffer_age true
+resetprop ro.surface_flinger.use_context_priority true
+resetprop debug.hwui.use_hint_manager true
