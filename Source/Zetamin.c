@@ -229,8 +229,8 @@ void main_render(long max_rate) {
     if (access("/proc/mali", F_OK) != -1 || access("/sys/module/mali_kbase", F_OK) != -1 || access("/sys/class/misc/mali0", F_OK) != -1) {
         write_val("/proc/mali/dvfs_enable", "1");
         char mali_dir[256];
-        get_cmd_output_str("find /sys/devices/platform -type d -name '*mali*' -maxdepth 2 2>/dev/null | head -n 1", mali_dir, sizeof(mali_dir));
-        if (mali_dir[0] != '\0') {
+        get_cmd_output_str("if [ -e /sys/class/misc/mali0 ]; then dirname $(dirname $(readlink -f /sys/class/misc/mali0)); else find /sys/devices/platform -type d -name '*mali*' -maxdepth 2 2>/dev/null | head -n 1; fi", mali_dir, sizeof(mali_dir));
+        if (mali_dir[0] != '\0' && strcmp(mali_dir, ".") != 0) {
             write_val_dir(mali_dir, "js_ctx_scheduling_mode", "1");
             write_val_dir(mali_dir, "scheduling/serialize_jobs", "full");
             write_val_dir(mali_dir, "power_policy", "always_on");
