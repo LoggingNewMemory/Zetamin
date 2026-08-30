@@ -3,10 +3,10 @@
 # From EnCorinVest
 resetprop debug.graphics.game_default_frame_rate.disabled true
 resetprop sys.surfaceflinger.idle_reduce_framerate_enable no
+resetprop ro.surface_flinger.enable_frame_rate_override false
 
 # Vestia Zeta Display
 resetprop debug.sf.disable_backpressure 1
-resetprop debug.sf.disable_hwc 1
 resetprop debug.sf.latch_unsignaled 1
 resetprop debug.sf.disable_client_composition_cache 1
 resetprop ro.surface_flinger.use_color_management false

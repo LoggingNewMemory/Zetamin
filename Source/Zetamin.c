@@ -70,6 +70,25 @@ long get_cmd_output_long(const char* cmd) {
     return val;
 }
 
+long get_real_fps() {
+    long fps = get_cmd_output_long("cmd display dump 2>/dev/null | grep -Eo 'fps=[0-9.]+' | cut -f2 -d= | sort -nr | head -n1 | cut -d . -f 1");
+    if (fps > 0) return fps;
+    
+    fps = get_cmd_output_long("dumpsys display 2>/dev/null | grep -Eo 'fps=[0-9.]+' | cut -d= -f2 | sort -nr | head -n1 | cut -d . -f 1");
+    if (fps > 0) return fps;
+    
+    fps = get_cmd_output_long("dumpsys display 2>/dev/null | grep -i 'mDefaultPeak' | grep -Eo '[0-9]{2,3}' | head -n1");
+    if (fps > 0) return fps;
+
+    fps = get_cmd_output_long("dumpsys SurfaceFlinger 2>/dev/null | grep -i 'refresh-rate' | grep -Eo '[0-9]{2,3}' | head -n1");
+    if (fps > 0) return fps;
+
+    fps = get_cmd_output_long("dumpsys display 2>/dev/null | grep -i 'DisplayDeviceInfo' | grep -Eo 'fps [0-9.]+' | grep -Eo '[0-9]+' | sort -nr | head -n1");
+    if (fps > 0) return fps;
+
+    return 60; // Absolute fallback if all detections fail
+}
+
 void surfaceflinger_autoset(long ft, long thresh) {
     setprop_int("debug.sf.set_idle_timer_ms", thresh);
     setprop_int("debug.sf.phase_offset_threshold_for_next_vsync_ns", (ft / 6) + (thresh * 4800));
@@ -125,20 +144,13 @@ void main_flux() {
     other(ft);
 }
 
-void main_render() {
+void main_render(long max_rate) {
     // additional_gpu_settings
-    write_val("/sys/module/ged/parameters/ged_smart_boost", "1000");
-    write_val("/sys/module/ged/parameters/boost_upper_bound", "100");
-    long fps = get_cmd_output_long("dumpsys display | grep -m1 \"mDefaultPeak\" | awk '{print int($2)}'");
+    long fps = max_rate;
+    if (fps <= 0) fps = 60; // Just in case, though get_real_fps handles it
     char fps_str[32]; snprintf(fps_str, sizeof(fps_str), "%ld", fps);
     write_val("/sys/module/ged/parameters/gx_dfps", fps_str);
-    write_val("/sys/module/ged/parameters/g_gpu_timer_based_emu", "1");
-    write_val("/sys/module/ged/parameters/boost_gpu_enable", "1");
-    write_val("/sys/module/ged/parameters/ged_boost_enable", "1");
-    write_val("/sys/module/ged/parameters/enable_gpu_boost", "1");
     write_val("/sys/module/ged/parameters/gx_game_mode", "1");
-    write_val("/sys/module/ged/parameters/gx_boost_on", "1");
-    write_val("/sys/module/ged/parameters/boost_amp", "1");
     write_val("/sys/module/ged/parameters/gx_3D_benchmark_on", "1");
     write_val("/sys/module/ged/parameters/is_GED_KPI_enabled", "1");
     write_val("/sys/module/ged/parameters/gpu_dvfs_enable", "1");
@@ -150,30 +162,10 @@ void main_render() {
     write_val("/sys/module/ged/parameters/gx_frc_mode", "0");
     write_val("/sys/module/ged/parameters/gpu_idle", "0");
     write_val("/sys/module/ged/parameters/gpu_debug_enable", "0");
-
-    write_val("/sys/kernel/debug/ged/hal/gpu_boost_level", "2");
-    write_val("/sys/kernel/debug/ged/hal/custom_upbound_gpu_freq", "1");
-    
     write_val("/sys/devices/platform/gpu/dvfs_enable", "1");
-    write_val("/sys/devices/platform/gpu/gpu_busy", "1");
-
-    // optimize_gpu_frequency
-    write_val("/proc/gpufreq/limit_table", "1 1 1");
-    write_val("/proc/gpufreq/gpufreq_limited_thermal_ignore", "1");
-    write_val("/proc/gpufreq/gpufreq_limited_oc_ignore", "1");
-    write_val("/proc/gpufreq/gpufreq_limited_low_batt_volume_ignore", "1");
-    write_val("/proc/gpufreq/gpufreq_limited_low_batt_volt_ignore", "1");
-    write_val("/proc/gpufreq/gpufreq_fixed_freq_volt", "0");
-    write_val("/proc/gpufreq/gpufreq_opp_stress_test", "0");
-    write_val("/proc/gpufreq/gpufreq_power_dump", "0");
-    write_val("/proc/gpufreq/gpufreq_power_limited", "0");
-    write_val("/proc/gpufreqv2/aging_mode", "disable");
 
     // optimize_pvr_settings
-    write_val("/sys/module/pvrsrvkm/parameters/gpu_power", "2");
     write_val("/sys/module/pvrsrvkm/parameters/HTBufferSizeInKB", "512");
-    write_val("/sys/module/pvrsrvkm/parameters/DisableClockGating", "1");
-    write_val("/sys/module/pvrsrvkm/parameters/EmuMaxFreq", "2");
     write_val("/sys/module/pvrsrvkm/parameters/EnableFWContextSwitch", "1");
     write_val("/sys/module/pvrsrvkm/parameters/gPVRDebugLevel", "0");
     write_val("/sys/module/pvrsrvkm/parameters/gpu_dvfs_enable", "1");
@@ -184,31 +176,17 @@ void main_render() {
     write_val("/sys/kernel/debug/pvr/apphint/HTBOperationMode", "2");
     write_val("/sys/kernel/debug/pvr/apphint/TimeCorrClock", "1");
     write_val("/sys/kernel/debug/pvr/apphint/0/DisableFEDLogging", "1");
-    write_val("/sys/kernel/debug/pvr/apphint/0/EnableAPM", "0");
 
     // optimize_adreno_driver
-    long pwr_lvl = get_cmd_output_long("cat /sys/class/kgsl/kgsl-3d0/num_pwrlevels 2>/dev/null");
-    if (pwr_lvl > 0) pwr_lvl -= 1;
-    char pwr_lvl_str[32]; snprintf(pwr_lvl_str, sizeof(pwr_lvl_str), "%ld", pwr_lvl);
-    
-    mask_val(pwr_lvl_str, "/sys/class/kgsl/kgsl-3d0/default_pwrlevel");
-    mask_val(pwr_lvl_str, "/sys/class/kgsl/kgsl-3d0/min_pwrlevel");
-    mask_val("0", "/sys/class/kgsl/kgsl-3d0/max_pwrlevel");
     mask_val("1", "/sys/class/kgsl/kgsl-3d0/bus_split");
-    mask_val("1", "/sys/class/kgsl/kgsl-3d0/force_clk_on");
-    mask_val("1", "/sys/class/kgsl/kgsl-3d0/force_no_nap");
-    mask_val("1", "/sys/class/kgsl/kgsl-3d0/force_rail_on");
     mask_val("0", "/sys/class/kgsl/kgsl-3d0/force_bus_on");
-    mask_val("0", "/sys/class/kgsl/kgsl-3d0/thermal_pwrlevel");
     mask_val("0", "/sys/class/kgsl/kgsl-3d0/perfcounter");
-    mask_val("0", "/sys/class/kgsl/kgsl-3d0/throttling");
     mask_val("0", "/sys/class/kgsl/kgsl-3d0/fsync_enable");
     mask_val("0", "/sys/class/kgsl/kgsl-3d0/vsync_enable");
     mask_val("0", "/sys/class/kgsl/kgsl-3d0/devfreq/adrenoboost");
 
     write_val("/sys/kernel/debug/kgsl/kgsl-3d0/profiling/enable", "0");
     write_val("/sys/module/adreno_idler/parameters/adreno_idler_active", "0");
-    write_val("/sys/module/msm_performance/parameters/touchboost", "1");
 
     // optimize_mali_driver
     write_val("/proc/mali/dvfs_enable", "1");
@@ -224,20 +202,18 @@ void main_render() {
     change_task_cgroup("pp_event|crtc_", "background", "cpuset");
 
     // final_optimize_gpu
-    system("val=$(cat /sys/kernel/debug/fpsgo/common/gpu_block_boost 2>/dev/null); nf=$(echo \"$val\" | awk '{print NF}'); if [ \"$nf\" -eq 1 ]; then echo \"100\" > /sys/kernel/debug/fpsgo/common/gpu_block_boost; elif [ \"$nf\" -eq 3 ]; then echo \"60 120 1\" > /sys/kernel/debug/fpsgo/common/gpu_block_boost; fi");
     system("for p in $(find /sys/kernel/debug/tracing/events/pvr_fence -name 'enable' 2>/dev/null); do echo \"0\" > \"$p\"; done");
 
     write_val("/sys/kernel/debug/tracing/events/mtk_events/enable", "0");
-    write_val("/proc/gpufreq/gpufreq_aging_enable", "0");
 
     write_val("/dev/cpuset/foreground/cpus", "0-3,4-7");
     write_val("/dev/cpuset/foreground/boost/cpus", "4-7");
     write_val("/dev/cpuset/top-app/cpus", "0-7");
 }
 
-void facur_main() {
-    long max_fps = get_cmd_output_long("dumpsys display 2>/dev/null | grep -Eo 'fps=[0-9]+' | cut -d= -f2 | sort -nr | head -n1");
-    if (max_fps == 0) max_fps = 60;
+void facur_main(long max_rate) {
+    long max_fps = max_rate;
+    if (max_fps <= 0) max_fps = 60;
     
     long vsync_ns = 1000000000 / max_fps;
     long val_e = (vsync_ns * 80) / 100;
@@ -275,22 +251,23 @@ void facur_main() {
 }
 
 int main() {
-    long max_rate = get_cmd_output_long("cmd display dump 2>/dev/null | grep -Eo 'fps=[0-9.]+' | cut -f2 -d= | sort -nr | head -n1 | cut -d . -f 1");
+    long max_rate = get_real_fps();
     if (max_rate > 60) {
         char cmd[256];
         snprintf(cmd, sizeof(cmd), "settings put system min_refresh_rate %ld", max_rate); system(cmd);
         snprintf(cmd, sizeof(cmd), "settings put system peak_refresh_rate %ld", max_rate); system(cmd);
         resetprop_int("ro.surface_flinger.game_default_frame_rate_override", max_rate);
+        system("resetprop ro.surface_flinger.enable_frame_rate_override false");
     }
 
     system("sync");
     main_flux();
 
     system("sync");
-    main_render();
+    main_render(max_rate);
 
     system("sync");
-    facur_main();
+    facur_main(max_rate);
 
     return 0;
 }
