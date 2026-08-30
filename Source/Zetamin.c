@@ -58,6 +58,20 @@ long get_cmd_output_long(const char* cmd) {
     return val;
 }
 
+void get_cmd_output_str(const char* cmd, char* out, size_t out_size) {
+    FILE *fp = popen(cmd, "r");
+    if (fp) {
+        if (fgets(out, out_size, fp)) {
+            out[strcspn(out, "\n")] = 0;
+        } else {
+            out[0] = '\0';
+        }
+        pclose(fp);
+    } else {
+        out[0] = '\0';
+    }
+}
+
 long get_real_fps() {
     long fps = get_cmd_output_long("cmd display dump 2>/dev/null | grep -Eo 'fps=[0-9.]+' | cut -f2 -d= | sort -nr | head -n1 | cut -d . -f 1");
     if (fps > 0) return fps;
@@ -202,11 +216,27 @@ void main_render(long max_rate) {
         write_val_dir(stune_top, "schedtune.prefer_idle", "1");
     }
 
+    // optimize_fpsgo (MediaTek)
+    const char* fpsgo = "/sys/kernel/fpsgo";
+    if (access(fpsgo, F_OK) != -1) {
+        write_val_dir(fpsgo, "common/fpsgo_enable", "1");
+        write_val_dir(fpsgo, "fbt/switch_idleprefer", "1");
+        write_val_dir(fpsgo, "fstb/margin_mode", "1");
+        write_val_dir(fpsgo, "fstb/margin_mode_gpu", "1");
+    }
+
     // optimize_mali_driver
-    if (access("/proc/mali", F_OK) != -1) {
+    if (access("/proc/mali", F_OK) != -1 || access("/sys/module/mali_kbase", F_OK) != -1 || access("/sys/class/misc/mali0", F_OK) != -1) {
         write_val("/proc/mali/dvfs_enable", "1");
-        system("mali_dir=$(ls -d /sys/devices/platform/soc/*mali*/scheduling 2>/dev/null | head -n 1); if [ -n \"$mali_dir\" ]; then echo \"full\" > \"$mali_dir/serialize_jobs\"; fi");
-        system("mali1_dir=$(ls -d /sys/devices/platform/soc/*mali* 2>/dev/null | head -n 1); if [ -n \"$mali1_dir\" ]; then echo \"1\" > \"$mali1_dir/js_ctx_scheduling_mode\"; fi");
+        char mali_dir[256];
+        get_cmd_output_str("find /sys/devices/platform -type d -name '*mali*' -maxdepth 2 2>/dev/null | head -n 1", mali_dir, sizeof(mali_dir));
+        if (mali_dir[0] != '\0') {
+            write_val_dir(mali_dir, "js_ctx_scheduling_mode", "1");
+            write_val_dir(mali_dir, "scheduling/serialize_jobs", "full");
+            write_val_dir(mali_dir, "power_policy", "always_on");
+            write_val_dir(mali_dir, "dvfs_period", "16");
+            write_val_dir(mali_dir, "js_scheduling_period", "16");
+        }
     }
 
     // optimize_task_cgroup_nice
