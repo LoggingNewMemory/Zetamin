@@ -8,7 +8,7 @@ export NDK=/opt/android-ndk
 export API=28
 TOOLCHAIN=$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin
 
-SRC_DIR="Sources"
+SRC_DIR="Source"
 if ! ls $SRC_DIR/*.c >/dev/null 2>&1; then
     echo "No C source files found in $SRC_DIR, skipping C compilation."
     exit 0
@@ -19,7 +19,7 @@ echo "Compiling C files using NDK..."
 for c_file in $SRC_DIR/*.c; do
     filename=$(basename -- "$c_file")
     binary_name="${filename%.*}"
-    TARGET_DIR="Modules/$binary_name"
+    TARGET_DIR="Modules"
     mkdir -p "$TARGET_DIR"
     
     echo "Building $binary_name..."

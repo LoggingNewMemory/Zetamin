@@ -5,7 +5,7 @@
 # Remove this for interactive mode
 # 1 = Enable | 0 = Disable
 #========================
-export MODULEVERSION="V1.0"
+export MODULEVERSION="V2.0"
 export FLASHTODEVICE="0"
 
 MODULES_DIR="Modules"
