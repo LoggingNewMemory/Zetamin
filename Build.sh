@@ -6,7 +6,7 @@
 # 1 = Enable | 0 = Disable
 #========================
 export MODULEVERSION="V2.0"
-export FLASHTODEVICE="0"
+export FLASHTODEVICE="1"
 
 MODULES_DIR="Modules"
 BUILD_DIR="Build"
