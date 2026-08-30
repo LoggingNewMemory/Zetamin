@@ -46,6 +46,18 @@ void mask_val(const char* val, const char* path) {
     }
 }
 
+void write_val_dir(const char* dir, const char* file, const char* val) {
+    char path[512];
+    snprintf(path, sizeof(path), "%s/%s", dir, file);
+    write_val(path, val);
+}
+
+void mask_val_dir(const char* val, const char* dir, const char* file) {
+    char path[512];
+    snprintf(path, sizeof(path), "%s/%s", dir, file);
+    mask_val(val, path);
+}
+
 void change_task_cgroup(const char* process_pattern, const char* cgroup_name, const char* cgroup_type) {
     char cmd[1024];
     snprintf(cmd, sizeof(cmd), 
@@ -145,45 +157,51 @@ void main_flux() {
 }
 
 void main_render(long max_rate) {
-    // additional_gpu_settings
     long fps = max_rate;
-    if (fps <= 0) fps = 60; // Just in case, though get_real_fps handles it
+    if (fps <= 0) fps = 60;
     char fps_str[32]; snprintf(fps_str, sizeof(fps_str), "%ld", fps);
-    write_val("/sys/module/ged/parameters/gx_dfps", fps_str);
-    write_val("/sys/module/ged/parameters/gx_game_mode", "1");
-    write_val("/sys/module/ged/parameters/gx_3D_benchmark_on", "1");
-    write_val("/sys/module/ged/parameters/is_GED_KPI_enabled", "1");
-    write_val("/sys/module/ged/parameters/gpu_dvfs_enable", "1");
-    write_val("/sys/module/ged/parameters/ged_monitor_3D_fence_disable", "0");
-    write_val("/sys/module/ged/parameters/ged_monitor_3D_fence_debug", "0");
-    write_val("/sys/module/ged/parameters/ged_log_perf_trace_enable", "0");
-    write_val("/sys/module/ged/parameters/ged_log_trace_enable", "0");
-    write_val("/sys/module/ged/parameters/gpu_bw_err_debug", "0");
-    write_val("/sys/module/ged/parameters/gx_frc_mode", "0");
-    write_val("/sys/module/ged/parameters/gpu_idle", "0");
-    write_val("/sys/module/ged/parameters/gpu_debug_enable", "0");
+
+    // additional_gpu_settings
+    const char* ged = "/sys/module/ged/parameters";
+    write_val_dir(ged, "gx_dfps", fps_str);
+    write_val_dir(ged, "gx_game_mode", "1");
+    write_val_dir(ged, "gx_3D_benchmark_on", "1");
+    write_val_dir(ged, "is_GED_KPI_enabled", "1");
+    write_val_dir(ged, "gpu_dvfs_enable", "1");
+    write_val_dir(ged, "ged_monitor_3D_fence_disable", "0");
+    write_val_dir(ged, "ged_monitor_3D_fence_debug", "0");
+    write_val_dir(ged, "ged_log_perf_trace_enable", "0");
+    write_val_dir(ged, "ged_log_trace_enable", "0");
+    write_val_dir(ged, "gpu_bw_err_debug", "0");
+    write_val_dir(ged, "gx_frc_mode", "0");
+    write_val_dir(ged, "gpu_idle", "0");
+    write_val_dir(ged, "gpu_debug_enable", "0");
+
     write_val("/sys/devices/platform/gpu/dvfs_enable", "1");
 
     // optimize_pvr_settings
-    write_val("/sys/module/pvrsrvkm/parameters/HTBufferSizeInKB", "512");
-    write_val("/sys/module/pvrsrvkm/parameters/EnableFWContextSwitch", "1");
-    write_val("/sys/module/pvrsrvkm/parameters/gPVRDebugLevel", "0");
-    write_val("/sys/module/pvrsrvkm/parameters/gpu_dvfs_enable", "1");
+    const char* pvr = "/sys/module/pvrsrvkm/parameters";
+    write_val_dir(pvr, "HTBufferSizeInKB", "512");
+    write_val_dir(pvr, "EnableFWContextSwitch", "1");
+    write_val_dir(pvr, "gPVRDebugLevel", "0");
+    write_val_dir(pvr, "gpu_dvfs_enable", "1");
     
-    write_val("/sys/kernel/debug/pvr/apphint/CacheOpConfig", "1");
-    write_val("/sys/kernel/debug/pvr/apphint/CacheOpUMKMThresholdSize", "512");
-    write_val("/sys/kernel/debug/pvr/apphint/EnableFTraceGPU", "0");
-    write_val("/sys/kernel/debug/pvr/apphint/HTBOperationMode", "2");
-    write_val("/sys/kernel/debug/pvr/apphint/TimeCorrClock", "1");
-    write_val("/sys/kernel/debug/pvr/apphint/0/DisableFEDLogging", "1");
+    const char* pvr_app = "/sys/kernel/debug/pvr/apphint";
+    write_val_dir(pvr_app, "CacheOpConfig", "1");
+    write_val_dir(pvr_app, "CacheOpUMKMThresholdSize", "512");
+    write_val_dir(pvr_app, "EnableFTraceGPU", "0");
+    write_val_dir(pvr_app, "HTBOperationMode", "2");
+    write_val_dir(pvr_app, "TimeCorrClock", "1");
+    write_val_dir(pvr_app, "0/DisableFEDLogging", "1");
 
     // optimize_adreno_driver
-    mask_val("1", "/sys/class/kgsl/kgsl-3d0/bus_split");
-    mask_val("0", "/sys/class/kgsl/kgsl-3d0/force_bus_on");
-    mask_val("0", "/sys/class/kgsl/kgsl-3d0/perfcounter");
-    mask_val("0", "/sys/class/kgsl/kgsl-3d0/fsync_enable");
-    mask_val("0", "/sys/class/kgsl/kgsl-3d0/vsync_enable");
-    mask_val("0", "/sys/class/kgsl/kgsl-3d0/devfreq/adrenoboost");
+    const char* kgsl = "/sys/class/kgsl/kgsl-3d0";
+    mask_val_dir("1", kgsl, "bus_split");
+    mask_val_dir("0", kgsl, "force_bus_on");
+    mask_val_dir("0", kgsl, "perfcounter");
+    mask_val_dir("0", kgsl, "fsync_enable");
+    mask_val_dir("0", kgsl, "vsync_enable");
+    mask_val_dir("0", kgsl, "devfreq/adrenoboost");
 
     write_val("/sys/kernel/debug/kgsl/kgsl-3d0/profiling/enable", "0");
     write_val("/sys/module/adreno_idler/parameters/adreno_idler_active", "0");
@@ -206,9 +224,10 @@ void main_render(long max_rate) {
 
     write_val("/sys/kernel/debug/tracing/events/mtk_events/enable", "0");
 
-    write_val("/dev/cpuset/foreground/cpus", "0-3,4-7");
-    write_val("/dev/cpuset/foreground/boost/cpus", "4-7");
-    write_val("/dev/cpuset/top-app/cpus", "0-7");
+    const char* cpuset = "/dev/cpuset";
+    write_val_dir(cpuset, "foreground/cpus", "0-3,4-7");
+    write_val_dir(cpuset, "foreground/boost/cpus", "4-7");
+    write_val_dir(cpuset, "top-app/cpus", "0-7");
 }
 
 void facur_main(long max_rate) {
