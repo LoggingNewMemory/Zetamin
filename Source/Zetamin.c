@@ -186,6 +186,11 @@ void main_render(long max_rate) {
         write_val_dir(kgsl, "vsync_enable", "0");
         write_val_dir(kgsl, "devfreq/adrenoboost", "0");
         write_val_dir(kgsl, "idle_timer", "120");
+        write_val_dir(kgsl, "throttling", "0"); 
+        write_val_dir(kgsl, "force_no_nap", "0");
+        write_val_dir(kgsl, "force_clk_on", "0");
+        write_val_dir(kgsl, "force_rail_on", "0");
+        
         write_val("/sys/kernel/debug/kgsl/kgsl-3d0/profiling/enable", "0");
         write_val("/sys/module/adreno_idler/parameters/adreno_idler_active", "0");
     }
