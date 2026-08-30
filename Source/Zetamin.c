@@ -248,13 +248,8 @@ int main() {
         system("resetprop ro.surface_flinger.enable_frame_rate_override false");
     }
 
-    system("sync");
     main_flux();
-
-    system("sync");
     main_render(max_rate);
-
-    system("sync");
     facur_main(max_rate);
 
     return 0;
