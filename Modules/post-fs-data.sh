@@ -28,3 +28,5 @@ resetprop debug.hwui.skip_empty_damage true
 resetprop debug.hwui.use_buffer_age true
 resetprop ro.surface_flinger.use_context_priority true
 resetprop debug.hwui.use_hint_manager true
+resetprop ro.surface_flinger.use_smart_90_for_video 0
+resetprop vendor.debug.egl.swapinterval 0
