@@ -223,11 +223,6 @@ void main_render(long max_rate) {
     system("for p in $(find /sys/kernel/debug/tracing/events/pvr_fence -name 'enable' 2>/dev/null); do echo \"0\" > \"$p\"; done");
 
     write_val("/sys/kernel/debug/tracing/events/mtk_events/enable", "0");
-
-    const char* cpuset = "/dev/cpuset";
-    write_val_dir(cpuset, "foreground/cpus", "0-3,4-7");
-    write_val_dir(cpuset, "foreground/boost/cpus", "4-7");
-    write_val_dir(cpuset, "top-app/cpus", "0-7");
 }
 
 void facur_main(long max_rate) {

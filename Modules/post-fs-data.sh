@@ -21,7 +21,6 @@ resetprop debug.gralloc.enable_fb_ubwc 0
 # From BreezeOS
 resetprop ro.max.fling_velocity 10000
 resetprop ro.surface_flinger.max_frame_buffer_acquired_buffers 3
-resetprop ro.surface_flinger.max_virtual_display_dimension 1920
 
 # Zetamin
 resetprop renderthread.skia.reduceopstasksplitting true
