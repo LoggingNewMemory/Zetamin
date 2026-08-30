@@ -32,30 +32,10 @@ void write_val(const char* path, const char* val) {
     }
 }
 
-void mask_val(const char* val, const char* path) {
-    if (access(path, F_OK) != -1) {
-        char cmd[512];
-        snprintf(cmd, sizeof(cmd), 
-            "umount \"%s\" 2>/dev/null; "
-            "chmod 644 \"%s\" 2>/dev/null; "
-            "echo \"%s\" > \"%s\"; "
-            "touch /data/local/tmp/mount_mask; "
-            "mount --bind /data/local/tmp/mount_mask \"%s\"", 
-            path, path, val, path, path);
-        system(cmd);
-    }
-}
-
 void write_val_dir(const char* dir, const char* file, const char* val) {
     char path[512];
     snprintf(path, sizeof(path), "%s/%s", dir, file);
     write_val(path, val);
-}
-
-void mask_val_dir(const char* val, const char* dir, const char* file) {
-    char path[512];
-    snprintf(path, sizeof(path), "%s/%s", dir, file);
-    mask_val(val, path);
 }
 
 void change_task_cgroup(const char* process_pattern, const char* cgroup_name, const char* cgroup_type) {
@@ -196,12 +176,12 @@ void main_render(long max_rate) {
 
     // optimize_adreno_driver
     const char* kgsl = "/sys/class/kgsl/kgsl-3d0";
-    mask_val_dir("1", kgsl, "bus_split");
-    mask_val_dir("0", kgsl, "force_bus_on");
-    mask_val_dir("0", kgsl, "perfcounter");
-    mask_val_dir("0", kgsl, "fsync_enable");
-    mask_val_dir("0", kgsl, "vsync_enable");
-    mask_val_dir("0", kgsl, "devfreq/adrenoboost");
+    write_val_dir(kgsl, "bus_split", "1");
+    write_val_dir(kgsl, "force_bus_on", "0");
+    write_val_dir(kgsl, "perfcounter", "0");
+    write_val_dir(kgsl, "fsync_enable", "0");
+    write_val_dir(kgsl, "vsync_enable", "0");
+    write_val_dir(kgsl, "devfreq/adrenoboost", "0");
 
     write_val("/sys/kernel/debug/kgsl/kgsl-3d0/profiling/enable", "0");
     write_val("/sys/module/adreno_idler/parameters/adreno_idler_active", "0");
