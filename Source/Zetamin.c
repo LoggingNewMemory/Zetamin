@@ -225,6 +225,12 @@ void main_render(long max_rate) {
         write_val_dir(fpsgo, "fstb/margin_mode_gpu", "1");
     }
 
+    // optimize_unisoc_driver (Spreadtrum)
+    const char* sprd_drm = "/sys/module/sprd_drm/parameters";
+    if (access(sprd_drm, F_OK) != -1) {
+        write_val_dir(sprd_drm, "sprd_vboost", "1");
+    }
+
     // optimize_mali_driver
     if (access("/proc/mali", F_OK) != -1 || access("/sys/module/mali_kbase", F_OK) != -1 || access("/sys/class/misc/mali0", F_OK) != -1) {
         write_val("/proc/mali/dvfs_enable", "1");
