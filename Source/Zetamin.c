@@ -6,22 +6,16 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
-void setprop(const char* prop, const char* val) {
+void resetprop(const char* prop, const char* val) {
     char cmd[512];
-    snprintf(cmd, sizeof(cmd), "setprop %s \"%s\"", prop, val);
+    snprintf(cmd, sizeof(cmd), "resetprop %s \"%s\"", prop, val);
     system(cmd);
-}
-
-void setprop_int(const char* prop, long val) {
-    char buf[64];
-    snprintf(buf, sizeof(buf), "%ld", val);
-    setprop(prop, buf);
 }
 
 void resetprop_int(const char* prop, long val) {
-    char cmd[256];
-    snprintf(cmd, sizeof(cmd), "resetprop %s %ld", prop, val);
-    system(cmd);
+    char buf[64];
+    snprintf(buf, sizeof(buf), "%ld", val);
+    resetprop(prop, buf);
 }
 
 void write_val(const char* path, const char* val) {
@@ -82,17 +76,17 @@ long get_real_fps() {
 }
 
 void surfaceflinger_autoset(long ft, long thresh) {
-    setprop_int("debug.sf.set_idle_timer_ms", thresh);
-    setprop_int("debug.sf.phase_offset_threshold_for_next_vsync_ns", (ft / 6) + (thresh * 4800));
+    resetprop_int("debug.sf.set_idle_timer_ms", thresh);
+    resetprop_int("debug.sf.phase_offset_threshold_for_next_vsync_ns", (ft / 6) + (thresh * 4800));
 }
 
 void other(long ft) {
-    setprop("debug.sf.prime_shader_cache.solid_layers", "true");
-    setprop("debug.sf.prime_shader_cache.image_layers", "true");
-    setprop("debug.sf.prime_shader_cache.shadow_layers", "true");
+    resetprop("debug.sf.prime_shader_cache.solid_layers", "true");
+    resetprop("debug.sf.prime_shader_cache.image_layers", "true");
+    resetprop("debug.sf.prime_shader_cache.shadow_layers", "true");
 
     long cpu_time = get_cmd_output_long("awk -v b=$(cat /proc/sys/kernel/perf_cpu_time_max_percent 2>/dev/null||echo 25) '{n=$1/b;print int(35+(n*15)/(1+n))}' /proc/loadavg");
-    setprop_int("debug.hwui.target_cpu_time_percent", cpu_time);
+    resetprop_int("debug.hwui.target_cpu_time_percent", cpu_time);
 
     char cmd[256];
     snprintf(cmd, sizeof(cmd), "awk -v ft=%ld 'BEGIN{printf \"%%.6f\", (ft/1000000000)*(ft<=10000000?0.85:0.75)}'", ft);
@@ -101,7 +95,7 @@ void other(long ft) {
         char buf[64];
         if (fgets(buf, sizeof(buf), fp)) {
             buf[strcspn(buf, "\n")] = 0;
-            setprop("debug.sf.frame_rate_multiple_threshold", buf);
+            resetprop("debug.sf.frame_rate_multiple_threshold", buf);
         }
         pclose(fp);
     }
@@ -220,28 +214,28 @@ void facur_main(long max_rate) {
         "debug.sf.high_fps.early.app.duration", "debug.sf.high_fps.earlyGl.app.duration",
         "debug.sf.high_fps.late.app.duration", "debug.sf.late.app.duration"
     };
-    for (int i = 0; i < 6; i++) setprop_int(props_e[i], val_e);
+    for (int i = 0; i < 6; i++) resetprop_int(props_e[i], val_e);
 
     const char* props_f[] = {
         "debug.sf.early.sf.duration", "debug.sf.earlyGl.sf.duration",
         "debug.sf.high_fps.early.sf.duration", "debug.sf.high_fps.earlyGl.sf.duration",
         "debug.sf.high_fps.late.sf.duration", "debug.sf.late.sf.duration"
     };
-    for (int i = 0; i < 6; i++) setprop_int(props_f[i], val_f);
+    for (int i = 0; i < 6; i++) resetprop_int(props_f[i], val_f);
 
     const char* props_g[] = {
         "debug.sf.earlyGl_app_phase_offset_ns", "debug.sf.early_app_phase_offset_ns",
         "debug.sf.high_fps_earlyGl_app_phase_offset_ns", "debug.sf.high_fps_early_app_phase_offset_ns",
         "debug.sf.high_fps_late_app_phase_offset_ns", "debug.sf.late_app_phase_offset_ns"
     };
-    for (int i = 0; i < 6; i++) setprop_int(props_g[i], val_g);
+    for (int i = 0; i < 6; i++) resetprop_int(props_g[i], val_g);
 
     const char* props_h[] = {
         "debug.sf.earlyGl_phase_offset_ns", "debug.sf.early_phase_offset_ns",
         "debug.sf.high_fps_earlyGl_phase_offset_ns", "debug.sf.high_fps_early_phase_offset_ns",
         "debug.sf.high_fps_late_phase_offset_ns", "debug.sf.late_phase_offset_ns"
     };
-    for (int i = 0; i < 6; i++) setprop_int(props_h[i], val_h);
+    for (int i = 0; i < 6; i++) resetprop_int(props_h[i], val_h);
 }
 
 int main() {
