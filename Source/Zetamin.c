@@ -301,6 +301,15 @@ int main() {
         char cmd[256];
         snprintf(cmd, sizeof(cmd), "settings put system min_refresh_rate %ld", max_rate); system(cmd);
         snprintf(cmd, sizeof(cmd), "settings put system peak_refresh_rate %ld", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put system user_refresh_rate %ld", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put secure miui_refresh_rate %ld", max_rate); system(cmd);
+        
+        int sf_index = 1;
+        if (max_rate >= 144) sf_index = 4;
+        else if (max_rate >= 120) sf_index = 3;
+        else if (max_rate >= 90) sf_index = 2;
+        snprintf(cmd, sizeof(cmd), "service call SurfaceFlinger 1035 i32 %d", sf_index); system(cmd);
+
         resetprop_int("ro.surface_flinger.game_default_frame_rate_override", max_rate);
         resetprop("ro.surface_flinger.enable_frame_rate_override", "false");
     }
