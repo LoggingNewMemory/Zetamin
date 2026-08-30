@@ -6,10 +6,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+FILE* prop_f = NULL;
+
 void resetprop(const char* prop, const char* val) {
-    char cmd[512];
-    snprintf(cmd, sizeof(cmd), "resetprop %s \"%s\"", prop, val);
-    system(cmd);
+    if (prop_f) {
+        fprintf(prop_f, "%s=%s\n", prop, val);
+    }
 }
 
 void resetprop_int(const char* prop, long val) {
@@ -103,7 +105,7 @@ void other(long ft) {
 
 void main_flux() {
     system("dumpsys SurfaceFlinger --latency-clear");
-    sleep(1);
+    usleep(100000); 
     
     long ft = get_cmd_output_long(
         "out=$(dumpsys SurfaceFlinger --latency 2>/dev/null | head -n 5); "
@@ -126,7 +128,6 @@ void main_flux() {
     }
 
     surfaceflinger_autoset(ft, thresh);
-    system("set start vsync");
     other(ft);
 }
 
@@ -151,9 +152,9 @@ void main_render(long max_rate) {
         write_val_dir(ged, "gx_frc_mode", "0");
         write_val_dir(ged, "gpu_idle", "0");
         write_val_dir(ged, "gpu_debug_enable", "0");
+        write_val("/sys/devices/platform/gpu/dvfs_enable", "1");
+        write_val("/sys/kernel/debug/tracing/events/mtk_events/enable", "0");
     }
-
-    write_val("/sys/devices/platform/gpu/dvfs_enable", "1");
 
     // optimize_pvr_settings
     const char* pvr = "/sys/module/pvrsrvkm/parameters";
@@ -162,6 +163,7 @@ void main_render(long max_rate) {
         write_val_dir(pvr, "EnableFWContextSwitch", "1");
         write_val_dir(pvr, "gPVRDebugLevel", "0");
         write_val_dir(pvr, "gpu_dvfs_enable", "1");
+        system("for p in $(find /sys/kernel/debug/tracing/events/pvr_fence -name 'enable' 2>/dev/null); do echo \"0\" > \"$p\"; done");
     }
     
     const char* pvr_app = "/sys/kernel/debug/pvr/apphint";
@@ -184,10 +186,9 @@ void main_render(long max_rate) {
         write_val_dir(kgsl, "vsync_enable", "0");
         write_val_dir(kgsl, "devfreq/adrenoboost", "0");
         write_val_dir(kgsl, "idle_timer", "120");
+        write_val("/sys/kernel/debug/kgsl/kgsl-3d0/profiling/enable", "0");
+        write_val("/sys/module/adreno_idler/parameters/adreno_idler_active", "0");
     }
-
-    write_val("/sys/kernel/debug/kgsl/kgsl-3d0/profiling/enable", "0");
-    write_val("/sys/module/adreno_idler/parameters/adreno_idler_active", "0");
 
     // EAS (Energy Aware Scheduling) stune for UI/Games
     const char* stune_top = "/dev/stune/top-app";
@@ -210,11 +211,6 @@ void main_render(long max_rate) {
     change_task_cgroup("hardware.media.c2|vendor.mediatek.hardware", "background", "cpuset");
     change_task_cgroup("aal_sof|kfps|dsp_send_thread|vdec_ipi_recv|mtk_drm_disp_id|disp_feature|hif_thread|main_thread|rx_thread|ged_", "background", "cpuset");
     change_task_cgroup("pp_event|crtc_", "background", "cpuset");
-
-    // final_optimize_gpu
-    system("for p in $(find /sys/kernel/debug/tracing/events/pvr_fence -name 'enable' 2>/dev/null); do echo \"0\" > \"$p\"; done");
-
-    write_val("/sys/kernel/debug/tracing/events/mtk_events/enable", "0");
 }
 
 void facur_main(long max_rate) {
@@ -257,18 +253,28 @@ void facur_main(long max_rate) {
 }
 
 int main() {
+    prop_f = fopen("/data/local/tmp/zeta.prop", "w");
+
     long max_rate = get_real_fps();
     if (max_rate > 60) {
         char cmd[256];
         snprintf(cmd, sizeof(cmd), "settings put system min_refresh_rate %ld", max_rate); system(cmd);
         snprintf(cmd, sizeof(cmd), "settings put system peak_refresh_rate %ld", max_rate); system(cmd);
         resetprop_int("ro.surface_flinger.game_default_frame_rate_override", max_rate);
-        system("resetprop ro.surface_flinger.enable_frame_rate_override false");
+        resetprop("ro.surface_flinger.enable_frame_rate_override", "false");
     }
+
+    resetprop("vestia.zeta.is", "Cat");
 
     main_flux();
     main_render(max_rate);
     facur_main(max_rate);
+
+    if (prop_f) {
+        fclose(prop_f);
+        system("resetprop -f /data/local/tmp/zeta.prop");
+        remove("/data/local/tmp/zeta.prop");
+    }
 
     return 0;
 }
