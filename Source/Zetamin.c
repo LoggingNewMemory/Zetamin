@@ -137,53 +137,71 @@ void main_render(long max_rate) {
 
     // additional_gpu_settings
     const char* ged = "/sys/module/ged/parameters";
-    write_val_dir(ged, "gx_dfps", fps_str);
-    write_val_dir(ged, "gx_game_mode", "1");
-    write_val_dir(ged, "gx_3D_benchmark_on", "1");
-    write_val_dir(ged, "is_GED_KPI_enabled", "1");
-    write_val_dir(ged, "gpu_dvfs_enable", "1");
-    write_val_dir(ged, "ged_monitor_3D_fence_disable", "0");
-    write_val_dir(ged, "ged_monitor_3D_fence_debug", "0");
-    write_val_dir(ged, "ged_log_perf_trace_enable", "0");
-    write_val_dir(ged, "ged_log_trace_enable", "0");
-    write_val_dir(ged, "gpu_bw_err_debug", "0");
-    write_val_dir(ged, "gx_frc_mode", "0");
-    write_val_dir(ged, "gpu_idle", "0");
-    write_val_dir(ged, "gpu_debug_enable", "0");
+    if (access(ged, F_OK) != -1) {
+        write_val_dir(ged, "gx_dfps", fps_str);
+        write_val_dir(ged, "gx_game_mode", "1");
+        write_val_dir(ged, "gx_3D_benchmark_on", "1");
+        write_val_dir(ged, "is_GED_KPI_enabled", "1");
+        write_val_dir(ged, "gpu_dvfs_enable", "1");
+        write_val_dir(ged, "ged_monitor_3D_fence_disable", "0");
+        write_val_dir(ged, "ged_monitor_3D_fence_debug", "0");
+        write_val_dir(ged, "ged_log_perf_trace_enable", "0");
+        write_val_dir(ged, "ged_log_trace_enable", "0");
+        write_val_dir(ged, "gpu_bw_err_debug", "0");
+        write_val_dir(ged, "gx_frc_mode", "0");
+        write_val_dir(ged, "gpu_idle", "0");
+        write_val_dir(ged, "gpu_debug_enable", "0");
+    }
 
     write_val("/sys/devices/platform/gpu/dvfs_enable", "1");
 
     // optimize_pvr_settings
     const char* pvr = "/sys/module/pvrsrvkm/parameters";
-    write_val_dir(pvr, "HTBufferSizeInKB", "512");
-    write_val_dir(pvr, "EnableFWContextSwitch", "1");
-    write_val_dir(pvr, "gPVRDebugLevel", "0");
-    write_val_dir(pvr, "gpu_dvfs_enable", "1");
+    if (access(pvr, F_OK) != -1) {
+        write_val_dir(pvr, "HTBufferSizeInKB", "512");
+        write_val_dir(pvr, "EnableFWContextSwitch", "1");
+        write_val_dir(pvr, "gPVRDebugLevel", "0");
+        write_val_dir(pvr, "gpu_dvfs_enable", "1");
+    }
     
     const char* pvr_app = "/sys/kernel/debug/pvr/apphint";
-    write_val_dir(pvr_app, "CacheOpConfig", "1");
-    write_val_dir(pvr_app, "CacheOpUMKMThresholdSize", "512");
-    write_val_dir(pvr_app, "EnableFTraceGPU", "0");
-    write_val_dir(pvr_app, "HTBOperationMode", "2");
-    write_val_dir(pvr_app, "TimeCorrClock", "1");
-    write_val_dir(pvr_app, "0/DisableFEDLogging", "1");
+    if (access(pvr_app, F_OK) != -1) {
+        write_val_dir(pvr_app, "CacheOpConfig", "1");
+        write_val_dir(pvr_app, "CacheOpUMKMThresholdSize", "512");
+        write_val_dir(pvr_app, "EnableFTraceGPU", "0");
+        write_val_dir(pvr_app, "HTBOperationMode", "2");
+        write_val_dir(pvr_app, "TimeCorrClock", "1");
+        write_val_dir(pvr_app, "0/DisableFEDLogging", "1");
+    }
 
     // optimize_adreno_driver
     const char* kgsl = "/sys/class/kgsl/kgsl-3d0";
-    write_val_dir(kgsl, "bus_split", "1");
-    write_val_dir(kgsl, "force_bus_on", "0");
-    write_val_dir(kgsl, "perfcounter", "0");
-    write_val_dir(kgsl, "fsync_enable", "0");
-    write_val_dir(kgsl, "vsync_enable", "0");
-    write_val_dir(kgsl, "devfreq/adrenoboost", "0");
+    if (access(kgsl, F_OK) != -1) {
+        write_val_dir(kgsl, "bus_split", "1");
+        write_val_dir(kgsl, "force_bus_on", "0");
+        write_val_dir(kgsl, "perfcounter", "0");
+        write_val_dir(kgsl, "fsync_enable", "0");
+        write_val_dir(kgsl, "vsync_enable", "0");
+        write_val_dir(kgsl, "devfreq/adrenoboost", "0");
+        write_val_dir(kgsl, "idle_timer", "120");
+    }
 
     write_val("/sys/kernel/debug/kgsl/kgsl-3d0/profiling/enable", "0");
     write_val("/sys/module/adreno_idler/parameters/adreno_idler_active", "0");
 
+    // EAS (Energy Aware Scheduling) stune for UI/Games
+    const char* stune_top = "/dev/stune/top-app";
+    if (access(stune_top, F_OK) != -1) {
+        write_val_dir(stune_top, "schedtune.boost", "10");
+        write_val_dir(stune_top, "schedtune.prefer_idle", "1");
+    }
+
     // optimize_mali_driver
-    write_val("/proc/mali/dvfs_enable", "1");
-    system("mali_dir=$(ls -d /sys/devices/platform/soc/*mali*/scheduling 2>/dev/null | head -n 1); if [ -n \"$mali_dir\" ]; then echo \"full\" > \"$mali_dir/serialize_jobs\"; fi");
-    system("mali1_dir=$(ls -d /sys/devices/platform/soc/*mali* 2>/dev/null | head -n 1); if [ -n \"$mali1_dir\" ]; then echo \"1\" > \"$mali1_dir/js_ctx_scheduling_mode\"; fi");
+    if (access("/proc/mali", F_OK) != -1) {
+        write_val("/proc/mali/dvfs_enable", "1");
+        system("mali_dir=$(ls -d /sys/devices/platform/soc/*mali*/scheduling 2>/dev/null | head -n 1); if [ -n \"$mali_dir\" ]; then echo \"full\" > \"$mali_dir/serialize_jobs\"; fi");
+        system("mali1_dir=$(ls -d /sys/devices/platform/soc/*mali* 2>/dev/null | head -n 1); if [ -n \"$mali1_dir\" ]; then echo \"1\" > \"$mali1_dir/js_ctx_scheduling_mode\"; fi");
+    }
 
     // optimize_task_cgroup_nice
     change_task_cgroup("surfaceflinger", "", "cpuset");
