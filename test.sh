@@ -29,6 +29,10 @@ echo "[+] Refresh Rate Settings (SECURE)" >> $OUTPUT
 settings list secure | grep -iE "refresh|fps|rate|display" >> $OUTPUT
 echo "" >> $OUTPUT
 
+echo "[+] System Properties (Refresh Rate / FPS)" >> $OUTPUT
+getprop | grep -iE "refresh|fps|frame_rate|display" >> $OUTPUT
+echo "" >> $OUTPUT
+
 echo "[+] SurfaceFlinger Status" >> $OUTPUT
 dumpsys SurfaceFlinger | grep -iE "peak-refresh-rate|refresh-rate" | head -n 20 >> $OUTPUT
 echo "" >> $OUTPUT
@@ -41,6 +45,27 @@ echo "[+] Real FPS Detection Test" >> $OUTPUT
 real_fps=$(cmd display dump 2>/dev/null | grep -Eo 'fps=[0-9.]+' | cut -f2 -d= | sort -nr | head -n1 | cut -d . -f 1)
 if [ -z "$real_fps" ]; then
     real_fps=$(dumpsys display 2>/dev/null | grep -Eo 'fps=[0-9.]+' | cut -d= -f2 | sort -nr | head -n1 | cut -d . -f 1)
+fi
+if [ -z "$real_fps" ]; then
+    real_fps=$(dumpsys display 2>/dev/null | grep -i 'mDefaultPeak' | grep -Eo '[0-9]{2,3}' | head -n1)
+fi
+if [ -z "$real_fps" ]; then
+    real_fps=$(dumpsys SurfaceFlinger 2>/dev/null | grep -i 'refresh-rate' | grep -Eo '[0-9]{2,3}' | head -n1)
+fi
+if [ -z "$real_fps" ]; then
+    real_fps=$(dumpsys display 2>/dev/null | grep -i 'DisplayDeviceInfo' | grep -Eo 'fps [0-9.]+' | grep -Eo '[0-9]+' | sort -nr | head -n1)
+fi
+if [ -z "$real_fps" ]; then
+    real_fps=$(getprop ro.surface_flinger.max_frame_rate 2>/dev/null)
+fi
+if [ -z "$real_fps" ]; then
+    real_fps=$(getprop ro.vendor.display.max_refresh_rate 2>/dev/null)
+fi
+if [ -z "$real_fps" ]; then
+    real_fps=$(getprop vendor.display.max_refresh_rate 2>/dev/null)
+fi
+if [ -z "$real_fps" ]; then
+    real_fps=$(getprop ro.vendor.display.default_fps 2>/dev/null)
 fi
 echo "Detected Max FPS: $real_fps" >> $OUTPUT
 echo "" >> $OUTPUT
