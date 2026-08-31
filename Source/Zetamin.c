@@ -339,11 +339,8 @@ int main() {
             snprintf(cmd, sizeof(cmd), "settings put global ScreenRefreshRateController_resultFps %ld", max_rate); system(cmd);
         }
 
-        int sf_index = 1;
-        if (max_rate >= 144) sf_index = 4;
-        else if (max_rate >= 120) sf_index = 3;
-        else if (max_rate >= 90) sf_index = 2;
-        snprintf(cmd, sizeof(cmd), "service call SurfaceFlinger 1035 i32 %d", sf_index); system(cmd);
+        // Acquire Frame Rate Flexibility Token (Android 11+)
+        system("service call SurfaceFlinger 1036 i32 1");
 
         resetprop_int("ro.surface_flinger.game_default_frame_rate_override", max_rate);
         resetprop("ro.surface_flinger.enable_frame_rate_override", "false");
