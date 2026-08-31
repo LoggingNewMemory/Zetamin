@@ -339,6 +339,19 @@ int main() {
             snprintf(cmd, sizeof(cmd), "settings put global ScreenRefreshRateController_resultFps %ld", max_rate); system(cmd);
         }
 
+        // TECNO/Infinix/itel (Transsion) specific fix
+        char is_transsion[64];
+        get_cmd_output_str("getprop ro.product.brand | grep -i -E 'tecno|infinix|itel'", is_transsion, sizeof(is_transsion));
+        if (is_transsion[0] == '\0') get_cmd_output_str("getprop ro.product.manufacturer | grep -i -E 'tecno|infinix|itel'", is_transsion, sizeof(is_transsion));
+        if (is_transsion[0] != '\0') {
+            snprintf(cmd, sizeof(cmd), "settings put system min_refresh_rate %ld.0", max_rate); system(cmd);
+            snprintf(cmd, sizeof(cmd), "settings put system peak_refresh_rate %ld.0", max_rate); system(cmd);
+            snprintf(cmd, sizeof(cmd), "settings put system default_app_refresh_rate %ld", max_rate); system(cmd);
+            snprintf(cmd, sizeof(cmd), "settings put system other_apps_refresh_rate %ld", max_rate); system(cmd);
+            snprintf(cmd, sizeof(cmd), "settings put system tran_other_app_refresh_rate %ld", max_rate); system(cmd);
+            snprintf(cmd, sizeof(cmd), "settings put system tran_need_recovery_refresh_rate %ld", max_rate); system(cmd);
+        }
+
         resetprop_int("ro.surface_flinger.game_default_frame_rate_override", max_rate);
         resetprop("ro.surface_flinger.enable_frame_rate_override", "false");
     }
