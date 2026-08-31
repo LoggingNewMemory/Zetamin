@@ -333,6 +333,10 @@ int main() {
             else if (max_rate >= 90) system("settings put system refresh_rate_mode 2");
             snprintf(cmd, sizeof(cmd), "settings put system unisoc.display_refreshrate %ld", max_rate); system(cmd);
             snprintf(cmd, sizeof(cmd), "settings put global unisoc.display_refreshrate %ld", max_rate); system(cmd);
+            snprintf(cmd, sizeof(cmd), "settings put system all_refresh_rate %ld", max_rate); system(cmd);
+            snprintf(cmd, sizeof(cmd), "settings put global all_refresh_rate %ld", max_rate); system(cmd);
+            snprintf(cmd, sizeof(cmd), "settings put system ScreenRefreshRateController_resultFps %ld", max_rate); system(cmd);
+            snprintf(cmd, sizeof(cmd), "settings put global ScreenRefreshRateController_resultFps %ld", max_rate); system(cmd);
         }
 
         int sf_index = 1;
