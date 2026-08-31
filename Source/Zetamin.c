@@ -344,10 +344,13 @@ int main() {
         get_cmd_output_str("getprop ro.product.brand | grep -i -E 'tecno|infinix|itel'", is_transsion, sizeof(is_transsion));
         if (is_transsion[0] == '\0') get_cmd_output_str("getprop ro.product.manufacturer | grep -i -E 'tecno|infinix|itel'", is_transsion, sizeof(is_transsion));
         if (is_transsion[0] != '\0') {
+            // Write both Integer and Float formats just in case SettingsProvider rejects one
+            snprintf(cmd, sizeof(cmd), "settings put system min_refresh_rate %ld", max_rate); system(cmd);
             snprintf(cmd, sizeof(cmd), "settings put system min_refresh_rate %ld.0", max_rate); system(cmd);
             snprintf(cmd, sizeof(cmd), "settings put global min_refresh_rate %ld.0", max_rate); system(cmd);
             snprintf(cmd, sizeof(cmd), "settings put secure min_refresh_rate %ld.0", max_rate); system(cmd);
             
+            snprintf(cmd, sizeof(cmd), "settings put system peak_refresh_rate %ld", max_rate); system(cmd);
             snprintf(cmd, sizeof(cmd), "settings put system peak_refresh_rate %ld.0", max_rate); system(cmd);
             snprintf(cmd, sizeof(cmd), "settings put global peak_refresh_rate %ld.0", max_rate); system(cmd);
             snprintf(cmd, sizeof(cmd), "settings put secure peak_refresh_rate %ld.0", max_rate); system(cmd);
