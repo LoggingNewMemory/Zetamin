@@ -101,20 +101,27 @@ void other(long ft) {
     resetprop("debug.sf.prime_shader_cache.image_layers", "true");
     resetprop("debug.sf.prime_shader_cache.shadow_layers", "true");
 
-    long cpu_time = get_cmd_output_long("awk -v b=$(cat /proc/sys/kernel/perf_cpu_time_max_percent 2>/dev/null||echo 25) '{n=$1/b;print int(35+(n*15)/(1+n))}' /proc/loadavg");
+    long b = 25;
+    FILE* f_b = fopen("/proc/sys/kernel/perf_cpu_time_max_percent", "r");
+    if (f_b) {
+        if (fscanf(f_b, "%ld", &b) != 1 || b == 0) b = 25;
+        fclose(f_b);
+    }
+    double load1 = 0;
+    FILE* f_l = fopen("/proc/loadavg", "r");
+    if (f_l) {
+        fscanf(f_l, "%lf", &load1);
+        fclose(f_l);
+    }
+    double n = load1 / b;
+    long cpu_time = (long)(35.0 + (n * 15.0) / (1.0 + n));
     resetprop_int("debug.hwui.target_cpu_time_percent", cpu_time);
 
-    char cmd[256];
-    snprintf(cmd, sizeof(cmd), "awk -v ft=%ld 'BEGIN{printf \"%%.6f\", (ft/1000000000)*(ft<=10000000?0.85:0.75)}'", ft);
-    FILE *fp = popen(cmd, "r");
-    if (fp) {
-        char buf[64];
-        if (fgets(buf, sizeof(buf), fp)) {
-            buf[strcspn(buf, "\n")] = 0;
-            resetprop("debug.sf.frame_rate_multiple_threshold", buf);
-        }
-        pclose(fp);
-    }
+    char buf[64];
+    double ft_f = (double)ft / 1000000000.0;
+    double multiplier = (ft <= 10000000) ? 0.85 : 0.75;
+    snprintf(buf, sizeof(buf), "%.6f", ft_f * multiplier);
+    resetprop("debug.sf.frame_rate_multiple_threshold", buf);
 }
 
 void main_flux() {
