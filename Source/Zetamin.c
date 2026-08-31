@@ -299,13 +299,33 @@ int main() {
     long max_rate = get_real_fps();
     if (max_rate > 60) {
         char cmd[256];
-        system("settings put system min_refresh_rate 1");
-        system("settings put system peak_refresh_rate 1");
-        system("settings put system user_refresh_rate 1");
-        system("settings put secure miui_refresh_rate 1");
-        system("settings put secure peak_refresh_rate 1");
-        system("settings put secure min_refresh_rate 1");
-        system("settings put system oplus_customize_screen_refresh_rate 1");
+        snprintf(cmd, sizeof(cmd), "settings put system min_refresh_rate %ld", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put system peak_refresh_rate %ld", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put system user_refresh_rate %ld", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put secure miui_refresh_rate %ld", max_rate); system(cmd);
+        
+        // OPlus/OnePlus/Realme specific fix to bypass Game Space
+        char is_oplus[64];
+        get_cmd_output_str("getprop ro.product.brand | grep -i -E 'oplus|oneplus|realme'", is_oplus, sizeof(is_oplus));
+        if (is_oplus[0] == '\0') get_cmd_output_str("getprop ro.product.manufacturer | grep -i -E 'oplus|oneplus|realme'", is_oplus, sizeof(is_oplus));
+        if (is_oplus[0] != '\0') {
+            system("settings put system peak_refresh_rate 1");
+            system("settings put system min_refresh_rate 1");
+            system("settings put secure peak_refresh_rate 1");
+            system("settings put secure min_refresh_rate 1");
+            system("settings put system oplus_customize_screen_refresh_rate 1");
+        }
+
+        // Nubia/ZTE/Unisoc specific fix
+        char is_nubia[64];
+        get_cmd_output_str("getprop ro.product.brand | grep -i -E 'nubia|zte'", is_nubia, sizeof(is_nubia));
+        if (is_nubia[0] != '\0') {
+            if (max_rate >= 144) system("settings put system refresh_rate_mode 4");
+            else if (max_rate >= 120) system("settings put system refresh_rate_mode 3");
+            else if (max_rate >= 90) system("settings put system refresh_rate_mode 2");
+            snprintf(cmd, sizeof(cmd), "settings put system unisoc.display_refreshrate %ld", max_rate); system(cmd);
+            snprintf(cmd, sizeof(cmd), "settings put global unisoc.display_refreshrate %ld", max_rate); system(cmd);
+        }
 
         int sf_index = 1;
         if (max_rate >= 144) sf_index = 4;
