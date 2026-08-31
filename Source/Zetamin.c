@@ -339,9 +339,6 @@ int main() {
             snprintf(cmd, sizeof(cmd), "settings put global ScreenRefreshRateController_resultFps %ld", max_rate); system(cmd);
         }
 
-        // Acquire Frame Rate Flexibility Token (Android 11+)
-        system("service call SurfaceFlinger 1036 i32 1");
-
         resetprop_int("ro.surface_flinger.game_default_frame_rate_override", max_rate);
         resetprop("ro.surface_flinger.enable_frame_rate_override", "false");
     }
