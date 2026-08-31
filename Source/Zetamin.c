@@ -302,7 +302,15 @@ int main() {
         snprintf(cmd, sizeof(cmd), "settings put system min_refresh_rate %ld", max_rate); system(cmd);
         snprintf(cmd, sizeof(cmd), "settings put system peak_refresh_rate %ld", max_rate); system(cmd);
         snprintf(cmd, sizeof(cmd), "settings put system user_refresh_rate %ld", max_rate); system(cmd);
-        snprintf(cmd, sizeof(cmd), "settings put secure miui_refresh_rate %ld", max_rate); system(cmd);
+        
+        // Xiaomi/POCO/Redmi specific fix
+        char is_xiaomi[64];
+        get_cmd_output_str("getprop ro.product.brand | grep -i -E 'xiaomi|poco|redmi'", is_xiaomi, sizeof(is_xiaomi));
+        if (is_xiaomi[0] == '\0') get_cmd_output_str("getprop ro.product.manufacturer | grep -i -E 'xiaomi|poco|redmi'", is_xiaomi, sizeof(is_xiaomi));
+        if (is_xiaomi[0] != '\0') {
+            snprintf(cmd, sizeof(cmd), "settings put secure miui_refresh_rate %ld", max_rate); system(cmd);
+            snprintf(cmd, sizeof(cmd), "settings put system miui_refresh_rate %ld", max_rate); system(cmd);
+        }
         
         // OPlus/OnePlus/Realme specific fix to bypass Game Space
         char is_oplus[64];
