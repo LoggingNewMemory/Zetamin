@@ -299,11 +299,14 @@ int main() {
     long max_rate = get_real_fps();
     if (max_rate > 60) {
         char cmd[256];
-        snprintf(cmd, sizeof(cmd), "settings put system min_refresh_rate %ld", max_rate); system(cmd);
-        snprintf(cmd, sizeof(cmd), "settings put system peak_refresh_rate %ld", max_rate); system(cmd);
-        snprintf(cmd, sizeof(cmd), "settings put system user_refresh_rate %ld", max_rate); system(cmd);
-        snprintf(cmd, sizeof(cmd), "settings put secure miui_refresh_rate %ld", max_rate); system(cmd);
-        
+        system("settings put system min_refresh_rate 1");
+        system("settings put system peak_refresh_rate 1");
+        system("settings put system user_refresh_rate 1");
+        system("settings put secure miui_refresh_rate 1");
+        system("settings put secure peak_refresh_rate 1");
+        system("settings put secure min_refresh_rate 1");
+        system("settings put system oplus_customize_screen_refresh_rate 1");
+
         int sf_index = 1;
         if (max_rate >= 144) sf_index = 4;
         else if (max_rate >= 120) sf_index = 3;
