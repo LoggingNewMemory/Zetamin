@@ -118,6 +118,7 @@ void other(long ft) {
     resetprop("debug.sf.prime_shader_cache.solid_layers", "true");
     resetprop("debug.sf.prime_shader_cache.image_layers", "true");
     resetprop("debug.sf.prime_shader_cache.shadow_layers", "true");
+    resetprop("debug.hwui.skia_atrace_enabled", "false");
 
     long b = 25;
     FILE* f_b = fopen("/proc/sys/kernel/perf_cpu_time_max_percent", "r");
@@ -413,9 +414,6 @@ int main() {
             snprintf(cmd, sizeof(cmd), "settings put system last_tran_refresh_mode_in_refresh_setting %ld", max_rate); system(cmd);
             snprintf(cmd, sizeof(cmd), "settings put system user_refresh_rate %ld", max_rate); system(cmd);
         }
-
-        // Force Highest Refresh Rate Trough SF Backdoor
-        system("service call SurfaceFlinger 1035 i32 0");
 
         resetprop_int("ro.surface_flinger.game_default_frame_rate_override", max_rate);
         resetprop("ro.surface_flinger.enable_frame_rate_override", "false");
