@@ -414,6 +414,9 @@ int main() {
             snprintf(cmd, sizeof(cmd), "settings put system user_refresh_rate %ld", max_rate); system(cmd);
         }
 
+        // Force Highest Refresh Rate Trough SF Backdoor
+        system("service call SurfaceFlinger 1035 i32 0");
+
         resetprop_int("ro.surface_flinger.game_default_frame_rate_override", max_rate);
         resetprop("ro.surface_flinger.enable_frame_rate_override", "false");
     }
