@@ -3,3 +3,8 @@
 Support Me: <br />
 https://sociabuzz.com/kanagawa_yamada/tribe (Global) <br />
 https://t.me/KLAGen2/86 (QRIS) <br />
+
+---
+
+* Author: **Kana Wesley Yamada** ([@LoggingNewMemory](https://github.com/LoggingNewMemory))
+* License: **GPL-3.0**
