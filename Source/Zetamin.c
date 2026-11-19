@@ -37,7 +37,7 @@ void write_val_dir(const char* dir, const char* file, const char* val) {
 void change_task_cgroup(const char* process_pattern, const char* cgroup_name, const char* cgroup_type) {
     char cmd[1024];
     snprintf(cmd, sizeof(cmd), 
-        "for temp_pid in $(ps -Ao pid,args | grep -i -E \"%s\" | grep -v PID | awk '{print $1}'); do "
+        "for temp_pid in $(ps -Ao pid,args | grep -v grep | grep -i -E \"%s\" | grep -v PID | awk '{print $1}'); do "
         "for temp_tid in $(ls /proc/$temp_pid/task/ 2>/dev/null); do "
         "echo $temp_tid > /dev/%s/%s/tasks 2>/dev/null; "
         "done; done", 
@@ -157,13 +157,18 @@ void main_render(long max_rate) {
     if (fps <= 0) fps = 60;
     char fps_str[32]; snprintf(fps_str, sizeof(fps_str), "%ld", fps);
 
-    // additional_gpu_settings
+    // MediaTek GED (Graphics Efficiency Driver) Micro-Tuning
+    // Aligned with MT6833GP research: eliminate 2D GPU boost spikes & normalize DVFS headroom
     const char* ged = "/sys/module/ged/parameters";
     if (access(ged, F_OK) != -1) {
         write_val_dir(ged, "gx_dfps", fps_str);
         write_val_dir(ged, "gx_game_mode", "1");
-        write_val_dir(ged, "gx_3D_benchmark_on", "1");
-        write_val_dir(ged, "is_GED_KPI_enabled", "1");
+        write_val_dir(ged, "gx_3D_benchmark_on", "0");
+        write_val_dir(ged, "is_GED_KPI_enabled", "0");
+        write_val_dir(ged, "enable_gpu_boost", "0");
+        write_val_dir(ged, "ged_boost_enable", "0");
+        write_val_dir(ged, "ged_smart_boost", "0");
+        write_val_dir(ged, "gx_fb_dvfs_margin", "25");
         write_val_dir(ged, "gpu_dvfs_enable", "1");
         write_val_dir(ged, "ged_monitor_3D_fence_disable", "0");
         write_val_dir(ged, "ged_monitor_3D_fence_debug", "0");
@@ -171,7 +176,6 @@ void main_render(long max_rate) {
         write_val_dir(ged, "ged_log_trace_enable", "0");
         write_val_dir(ged, "gpu_bw_err_debug", "0");
         write_val_dir(ged, "gx_frc_mode", "0");
-        write_val_dir(ged, "gpu_idle", "0");
         write_val_dir(ged, "gpu_debug_enable", "0");
         write_val("/sys/devices/platform/gpu/dvfs_enable", "1");
         write_val("/sys/kernel/debug/tracing/events/mtk_events/enable", "0");
@@ -216,18 +220,35 @@ void main_render(long max_rate) {
         write_val("/sys/module/adreno_idler/parameters/adreno_idler_active", "0");
     }
 
-    // EAS (Energy Aware Scheduling) stune for UI/Games
+    // EAS (Energy Aware Scheduling) stune for legacy kernels
     const char* stune_top = "/dev/stune/top-app";
     if (access(stune_top, F_OK) != -1) {
         write_val_dir(stune_top, "schedtune.boost", "10");
         write_val_dir(stune_top, "schedtune.prefer_idle", "1");
     }
+    // EAS Uclamp Decoupling for modern MediaTek / Android kernels (5.4/5.10+)
+    const char* uclamp_sys = "/dev/cpuctl/system/uclamp.min";
+    if (access(uclamp_sys, F_OK) != -1) {
+        write_val(uclamp_sys, "20.00");
+    }
+    const char* uclamp_sys_v2 = "/dev/cpuctl/system/cpu.uclamp.min";
+    if (access(uclamp_sys_v2, F_OK) != -1) {
+        write_val(uclamp_sys_v2, "20.00");
+    }
+    write_val("/proc/sys/kernel/sched_util_clamp_min", "0");
 
     // optimize_fpsgo (MediaTek)
+    // Modern MediaTek kernels (5.4/5.10+) use mtk_fpsgo parameter nodes
+    const char* mtk_fpsgo = "/sys/module/mtk_fpsgo/parameters";
+    if (access(mtk_fpsgo, F_OK) != -1) {
+        write_val_dir(mtk_fpsgo, "bhr", "1");
+        write_val_dir(mtk_fpsgo, "bhr_opp", "1");
+        write_val_dir(mtk_fpsgo, "fstb_separate_runtime_enable", "1");
+    }
+    // Legacy MediaTek kernels (4.14/4.19)
     const char* fpsgo = "/sys/kernel/fpsgo";
     if (access(fpsgo, F_OK) != -1) {
         write_val_dir(fpsgo, "common/fpsgo_enable", "1");
-        write_val_dir(fpsgo, "fbt/switch_idleprefer", "1");
         write_val_dir(fpsgo, "fstb/margin_mode", "1");
         write_val_dir(fpsgo, "fstb/margin_mode_gpu", "1");
     }
@@ -245,20 +266,23 @@ void main_render(long max_rate) {
         get_cmd_output_str("if [ -e /sys/class/misc/mali0 ]; then dirname $(dirname $(readlink -f /sys/class/misc/mali0)); else find /sys/devices/platform -type d -name '*mali*' -maxdepth 2 2>/dev/null | head -n 1; fi", mali_dir, sizeof(mali_dir));
         if (mali_dir[0] != '\0' && strcmp(mali_dir, ".") != 0) {
             write_val_dir(mali_dir, "js_ctx_scheduling_mode", "1");
-            write_val_dir(mali_dir, "scheduling/serialize_jobs", "full");
-            write_val_dir(mali_dir, "power_policy", "always_on");
-            write_val_dir(mali_dir, "dvfs_period", "16");
-            write_val_dir(mali_dir, "js_scheduling_period", "16");
+            write_val_dir(mali_dir, "scheduling/serialize_jobs", "none");
+            write_val_dir(mali_dir, "power_policy", "coarse_demand");
+            write_val_dir(mali_dir, "dvfs_period", "50");
+            write_val_dir(mali_dir, "js_scheduling_period", "50");
         }
     }
 
     // optimize_task_cgroup_nice
+    // Keep critical UI rendering, compositor, and display fence threads unrestricted
     change_task_cgroup("surfaceflinger", "", "cpuset");
+    change_task_cgroup("composer|hwcomposer", "", "cpuset");
+    change_task_cgroup("mtk_drm_disp_id|crtc_|disp_feature", "", "cpuset");
+    change_task_cgroup("ged_|kfps", "", "cpuset");
     change_task_cgroup("system_server", "foreground", "cpuset");
     change_task_cgroup("netd|allocator", "foreground", "cpuset");
-    change_task_cgroup("hardware.media.c2|vendor.mediatek.hardware", "background", "cpuset");
-    change_task_cgroup("aal_sof|kfps|dsp_send_thread|vdec_ipi_recv|mtk_drm_disp_id|disp_feature|hif_thread|main_thread|rx_thread|ged_", "background", "cpuset");
-    change_task_cgroup("pp_event|crtc_", "background", "cpuset");
+    // Background worker & media decoding helpers only
+    change_task_cgroup("hardware.media.c2|vdec_ipi_recv|dsp_send_thread|hif_thread|rx_thread", "background", "cpuset");
 }
 
 void facur_main(long max_rate) {
