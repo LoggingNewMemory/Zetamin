@@ -21,19 +21,27 @@ LATESTARTSERVICE=true
 ui_print "------------------------------------"
 ui_print "               Zetamin              "
 ui_print "------------------------------------"
-ui_print "         By: Kana Wesley Yamada        "
+ui_print "        By: Kana Wesley Yamada      "
 ui_print "------------------------------------"
 ui_print "      DO NOT COMBINE WITH OTHER     "
 ui_print "            SCREEN TWEAKS           "
 ui_print "------------------------------------"
 ui_print " "
 
+MODULE_PROP="$MODPATH/module.prop"
+[ ! -f "$MODULE_PROP" ] && MODULE_PROP="${0%/*}/module.prop"
+
+MODULE_ID=$(grep "^id=" "$MODULE_PROP" 2>/dev/null | cut -d'=' -f2 | tr -d '[:space:]')
+[ -z "$MODULE_ID" ] && MODULE_ID="Zetamin"
+
+MODULE_VERSION=$(grep "^version=" "$MODULE_PROP" 2>/dev/null | cut -d'=' -f2 | tr -d '[:space:]')
+[ -z "$MODULE_VERSION" ] && MODULE_VERSION="V2.0"
+
 ui_print "------------------------------------"
 ui_print "            MODULE INFO             "
 ui_print "------------------------------------"
-ui_print "Name : Zetamin"
-ui_print "Version : V2.0"
-ui_print "Support Root : Magisk / KernelSU"
+ui_print "id : $MODULE_ID"
+ui_print "version : $MODULE_VERSION"
 ui_print " "
 
 ui_print "        Installing Zetamin          "

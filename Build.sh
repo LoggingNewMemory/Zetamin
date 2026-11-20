@@ -82,11 +82,6 @@ build_modules() {
         rm "module.prop.tmp"
     fi
 
-    if [ -f "customize.sh" ]; then
-        cp "customize.sh" "customize.sh.tmp"
-        sed "s/^ui_print \"Version : .*$/ui_print \"Version : $VERSION\"/" "customize.sh.tmp" > "customize.sh"
-        rm "customize.sh.tmp"
-    fi
 
     ZIP_NAME="${MODULE_ID}-${VERSION}.zip"
     ZIP_PATH="../$BUILD_DIR/$ZIP_NAME"

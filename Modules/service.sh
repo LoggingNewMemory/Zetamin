@@ -1,3 +1,4 @@
+#!/system/bin/sh
 # ==============================================================================
 # Zetamin: All in one Screen Tweaks
 # Copyright (C) 2026 Kana Wesley Yamada
@@ -17,7 +18,7 @@
 # ==============================================================================
 
 until [ -d "/sdcard/Android" ]; do
-sleep 3
+    sleep 3
 done
 
 sleep 15

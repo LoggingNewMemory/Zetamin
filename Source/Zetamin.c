@@ -109,17 +109,16 @@ long get_real_fps() {
     return 60; // Absolute fallback if all detections fail
 }
 
+// ==============================================================================
+// 1. Dynamic SurfaceFlinger & HWUI Calculation Engine
+// ==============================================================================
+
 void surfaceflinger_autoset(long ft, long thresh) {
     resetprop_int("debug.sf.set_idle_timer_ms", thresh);
     resetprop_int("debug.sf.phase_offset_threshold_for_next_vsync_ns", (ft / 6) + (thresh * 4800));
 }
 
 void other(long ft) {
-    resetprop("debug.sf.prime_shader_cache.solid_layers", "true");
-    resetprop("debug.sf.prime_shader_cache.image_layers", "true");
-    resetprop("debug.sf.prime_shader_cache.shadow_layers", "true");
-    resetprop("debug.hwui.skia_atrace_enabled", "false");
-
     long b = 25;
     FILE* f_b = fopen("/proc/sys/kernel/perf_cpu_time_max_percent", "r");
     if (f_b) {
@@ -144,7 +143,7 @@ void other(long ft) {
 }
 
 void main_flux() {
-    system("dumpsys SurfaceFlinger --latency-clear");
+    system("dumpsys SurfaceFlinger --latency-clear 2>/dev/null");
     usleep(100000); 
     
     long ft = get_cmd_output_long(
@@ -171,9 +170,50 @@ void main_flux() {
     other(ft);
 }
 
-void main_render(long max_rate) {
-    long fps = max_rate;
-    if (fps <= 0) fps = 60;
+void facur_main(long max_rate) {
+    long max_fps = (max_rate > 0) ? max_rate : 60;
+    
+    long vsync_ns = 1000000000 / max_fps;
+    long val_e = (vsync_ns * 80) / 100;
+    long val_f = (vsync_ns * 60) / 100;
+    long val_g = -val_e;
+    long val_h = -val_f;
+
+    const char* props_e[] = {
+        "debug.sf.early.app.duration", "debug.sf.earlyGl.app.duration",
+        "debug.sf.high_fps.early.app.duration", "debug.sf.high_fps.earlyGl.app.duration",
+        "debug.sf.high_fps.late.app.duration", "debug.sf.late.app.duration"
+    };
+    for (int i = 0; i < 6; i++) resetprop_int(props_e[i], val_e);
+
+    const char* props_f[] = {
+        "debug.sf.early.sf.duration", "debug.sf.earlyGl.sf.duration",
+        "debug.sf.high_fps.early.sf.duration", "debug.sf.high_fps.earlyGl.sf.duration",
+        "debug.sf.high_fps.late.sf.duration", "debug.sf.late.sf.duration"
+    };
+    for (int i = 0; i < 6; i++) resetprop_int(props_f[i], val_f);
+
+    const char* props_g[] = {
+        "debug.sf.earlyGl_app_phase_offset_ns", "debug.sf.early_app_phase_offset_ns",
+        "debug.sf.high_fps_earlyGl_app_phase_offset_ns", "debug.sf.high_fps_early_app_phase_offset_ns",
+        "debug.sf.high_fps_late_app_phase_offset_ns", "debug.sf.late_app_phase_offset_ns"
+    };
+    for (int i = 0; i < 6; i++) resetprop_int(props_g[i], val_g);
+
+    const char* props_h[] = {
+        "debug.sf.earlyGl_phase_offset_ns", "debug.sf.early_phase_offset_ns",
+        "debug.sf.high_fps_earlyGl_phase_offset_ns", "debug.sf.high_fps_early_phase_offset_ns",
+        "debug.sf.high_fps_late_phase_offset_ns", "debug.sf.late_phase_offset_ns"
+    };
+    for (int i = 0; i < 6; i++) resetprop_int(props_h[i], val_h);
+}
+
+// ==============================================================================
+// 2. Hardware Render & Kernel Driver Tweaks
+// ==============================================================================
+
+void apply_hardware_render_tweaks(long max_rate) {
+    long fps = (max_rate > 0) ? max_rate : 60;
     char fps_str[32]; snprintf(fps_str, sizeof(fps_str), "%ld", fps);
 
     // MediaTek GED (Graphics Efficiency Driver) Micro-Tuning
@@ -304,130 +344,101 @@ void main_render(long max_rate) {
     change_task_cgroup("hardware.media.c2|vdec_ipi_recv|dsp_send_thread|hif_thread|rx_thread", "background", "cpuset");
 }
 
-void facur_main(long max_rate) {
-    long max_fps = max_rate;
-    if (max_fps <= 0) max_fps = 60;
+// ==============================================================================
+// 3. Android Display Framework & Vendor Refresh Rate Bypasses
+// ==============================================================================
+
+void apply_display_settings(long max_rate) {
+    if (max_rate <= 60) return;
+
+    char cmd[256];
+    snprintf(cmd, sizeof(cmd), "settings put system min_refresh_rate %ld 2>/dev/null", max_rate); system(cmd);
+    snprintf(cmd, sizeof(cmd), "settings put system peak_refresh_rate %ld 2>/dev/null", max_rate); system(cmd);
+    snprintf(cmd, sizeof(cmd), "settings put system user_refresh_rate %ld 2>/dev/null", max_rate); system(cmd);
     
-    long vsync_ns = 1000000000 / max_fps;
-    long val_e = (vsync_ns * 80) / 100;
-    long val_f = (vsync_ns * 60) / 100;
-    long val_g = -val_e;
-    long val_h = -val_f;
+    // Xiaomi/POCO/Redmi specific fix
+    char is_xiaomi[64];
+    get_cmd_output_str("getprop ro.product.brand | grep -i -E 'xiaomi|poco|redmi'", is_xiaomi, sizeof(is_xiaomi));
+    if (is_xiaomi[0] == '\0') get_cmd_output_str("getprop ro.product.manufacturer | grep -i -E 'xiaomi|poco|redmi'", is_xiaomi, sizeof(is_xiaomi));
+    if (is_xiaomi[0] != '\0') {
+        snprintf(cmd, sizeof(cmd), "settings put secure miui_refresh_rate %ld 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put system miui_refresh_rate %ld 2>/dev/null", max_rate); system(cmd);
+    }
+    
+    // OPlus/OnePlus/Realme specific fix to bypass Game Space
+    char is_oplus[64];
+    get_cmd_output_str("getprop ro.product.brand | grep -i -E 'oplus|oneplus|realme'", is_oplus, sizeof(is_oplus));
+    if (is_oplus[0] == '\0') get_cmd_output_str("getprop ro.product.manufacturer | grep -i -E 'oplus|oneplus|realme'", is_oplus, sizeof(is_oplus));
+    if (is_oplus[0] != '\0') {
+        system("settings put system peak_refresh_rate 1 2>/dev/null");
+        system("settings put system min_refresh_rate 1 2>/dev/null");
+        system("settings put secure peak_refresh_rate 1 2>/dev/null");
+        system("settings put secure min_refresh_rate 1 2>/dev/null");
+        system("settings put system oplus_customize_screen_refresh_rate 1 2>/dev/null");
+    }
 
-    const char* props_e[] = {
-        "debug.sf.early.app.duration", "debug.sf.earlyGl.app.duration",
-        "debug.sf.high_fps.early.app.duration", "debug.sf.high_fps.earlyGl.app.duration",
-        "debug.sf.high_fps.late.app.duration", "debug.sf.late.app.duration"
-    };
-    for (int i = 0; i < 6; i++) resetprop_int(props_e[i], val_e);
+    // Nubia/ZTE/Unisoc specific fix
+    char is_nubia[64];
+    get_cmd_output_str("getprop ro.product.brand | grep -i -E 'nubia|zte'", is_nubia, sizeof(is_nubia));
+    if (is_nubia[0] != '\0') {
+        if (max_rate >= 144) system("settings put system refresh_rate_mode 4 2>/dev/null");
+        else if (max_rate >= 120) system("settings put system refresh_rate_mode 3 2>/dev/null");
+        else if (max_rate >= 90) system("settings put system refresh_rate_mode 2 2>/dev/null");
+        snprintf(cmd, sizeof(cmd), "settings put system unisoc.display_refreshrate %ld 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put global unisoc.display_refreshrate %ld 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put system all_refresh_rate %ld 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put global all_refresh_rate %ld 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put system ScreenRefreshRateController_resultFps %ld 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put global ScreenRefreshRateController_resultFps %ld 2>/dev/null", max_rate); system(cmd);
+    }
 
-    const char* props_f[] = {
-        "debug.sf.early.sf.duration", "debug.sf.earlyGl.sf.duration",
-        "debug.sf.high_fps.early.sf.duration", "debug.sf.high_fps.earlyGl.sf.duration",
-        "debug.sf.high_fps.late.sf.duration", "debug.sf.late.sf.duration"
-    };
-    for (int i = 0; i < 6; i++) resetprop_int(props_f[i], val_f);
-
-    const char* props_g[] = {
-        "debug.sf.earlyGl_app_phase_offset_ns", "debug.sf.early_app_phase_offset_ns",
-        "debug.sf.high_fps_earlyGl_app_phase_offset_ns", "debug.sf.high_fps_early_app_phase_offset_ns",
-        "debug.sf.high_fps_late_app_phase_offset_ns", "debug.sf.late_app_phase_offset_ns"
-    };
-    for (int i = 0; i < 6; i++) resetprop_int(props_g[i], val_g);
-
-    const char* props_h[] = {
-        "debug.sf.earlyGl_phase_offset_ns", "debug.sf.early_phase_offset_ns",
-        "debug.sf.high_fps_earlyGl_phase_offset_ns", "debug.sf.high_fps_early_phase_offset_ns",
-        "debug.sf.high_fps_late_phase_offset_ns", "debug.sf.late_phase_offset_ns"
-    };
-    for (int i = 0; i < 6; i++) resetprop_int(props_h[i], val_h);
+    // TECNO/Infinix/itel (Transsion) specific fix
+    char is_transsion[64];
+    get_cmd_output_str("getprop ro.product.brand | grep -i -E 'tecno|infinix|itel'", is_transsion, sizeof(is_transsion));
+    if (is_transsion[0] == '\0') get_cmd_output_str("getprop ro.product.manufacturer | grep -i -E 'tecno|infinix|itel'", is_transsion, sizeof(is_transsion));
+    if (is_transsion[0] != '\0') {
+        snprintf(cmd, sizeof(cmd), "settings put system min_refresh_rate %ld 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put system min_refresh_rate %ld.0 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put global min_refresh_rate %ld.0 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put secure min_refresh_rate %ld.0 2>/dev/null", max_rate); system(cmd);
+        
+        snprintf(cmd, sizeof(cmd), "settings put system peak_refresh_rate %ld 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put system peak_refresh_rate %ld.0 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put global peak_refresh_rate %ld.0 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put secure peak_refresh_rate %ld.0 2>/dev/null", max_rate); system(cmd);
+        
+        snprintf(cmd, sizeof(cmd), "settings put system default_app_refresh_rate %ld 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put system other_apps_refresh_rate %ld 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put system tran_other_app_refresh_rate %ld 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put system tran_need_recovery_refresh_rate %ld 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put system tran_refresh_mode %ld 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put system tran_need_recovery_refresh_mode %ld 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put system last_tran_refresh_mode_in_refresh_setting %ld 2>/dev/null", max_rate); system(cmd);
+        snprintf(cmd, sizeof(cmd), "settings put system user_refresh_rate %ld 2>/dev/null", max_rate); system(cmd);
+    }
 }
+
+// ==============================================================================
+// 4. Standalone Execution Entrypoint
+// ==============================================================================
 
 int main() {
     prop_f = fopen("/data/local/tmp/zeta.prop", "w");
 
     long max_rate = get_real_fps();
     if (max_rate > 60) {
-        char cmd[256];
-        snprintf(cmd, sizeof(cmd), "settings put system min_refresh_rate %ld", max_rate); system(cmd);
-        snprintf(cmd, sizeof(cmd), "settings put system peak_refresh_rate %ld", max_rate); system(cmd);
-        snprintf(cmd, sizeof(cmd), "settings put system user_refresh_rate %ld", max_rate); system(cmd);
-        
-        // Xiaomi/POCO/Redmi specific fix
-        char is_xiaomi[64];
-        get_cmd_output_str("getprop ro.product.brand | grep -i -E 'xiaomi|poco|redmi'", is_xiaomi, sizeof(is_xiaomi));
-        if (is_xiaomi[0] == '\0') get_cmd_output_str("getprop ro.product.manufacturer | grep -i -E 'xiaomi|poco|redmi'", is_xiaomi, sizeof(is_xiaomi));
-        if (is_xiaomi[0] != '\0') {
-            snprintf(cmd, sizeof(cmd), "settings put secure miui_refresh_rate %ld", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put system miui_refresh_rate %ld", max_rate); system(cmd);
-        }
-        
-        // OPlus/OnePlus/Realme specific fix to bypass Game Space
-        char is_oplus[64];
-        get_cmd_output_str("getprop ro.product.brand | grep -i -E 'oplus|oneplus|realme'", is_oplus, sizeof(is_oplus));
-        if (is_oplus[0] == '\0') get_cmd_output_str("getprop ro.product.manufacturer | grep -i -E 'oplus|oneplus|realme'", is_oplus, sizeof(is_oplus));
-        if (is_oplus[0] != '\0') {
-            system("settings put system peak_refresh_rate 1");
-            system("settings put system min_refresh_rate 1");
-            system("settings put secure peak_refresh_rate 1");
-            system("settings put secure min_refresh_rate 1");
-            system("settings put system oplus_customize_screen_refresh_rate 1");
-        }
-
-        // Nubia/ZTE/Unisoc specific fix
-        char is_nubia[64];
-        get_cmd_output_str("getprop ro.product.brand | grep -i -E 'nubia|zte'", is_nubia, sizeof(is_nubia));
-        if (is_nubia[0] != '\0') {
-            if (max_rate >= 144) system("settings put system refresh_rate_mode 4");
-            else if (max_rate >= 120) system("settings put system refresh_rate_mode 3");
-            else if (max_rate >= 90) system("settings put system refresh_rate_mode 2");
-            snprintf(cmd, sizeof(cmd), "settings put system unisoc.display_refreshrate %ld", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put global unisoc.display_refreshrate %ld", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put system all_refresh_rate %ld", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put global all_refresh_rate %ld", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put system ScreenRefreshRateController_resultFps %ld", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put global ScreenRefreshRateController_resultFps %ld", max_rate); system(cmd);
-        }
-
-        // TECNO/Infinix/itel (Transsion) specific fix
-        char is_transsion[64];
-        get_cmd_output_str("getprop ro.product.brand | grep -i -E 'tecno|infinix|itel'", is_transsion, sizeof(is_transsion));
-        if (is_transsion[0] == '\0') get_cmd_output_str("getprop ro.product.manufacturer | grep -i -E 'tecno|infinix|itel'", is_transsion, sizeof(is_transsion));
-        if (is_transsion[0] != '\0') {
-            // Write both Integer and Float formats just in case SettingsProvider rejects one
-            snprintf(cmd, sizeof(cmd), "settings put system min_refresh_rate %ld", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put system min_refresh_rate %ld.0", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put global min_refresh_rate %ld.0", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put secure min_refresh_rate %ld.0", max_rate); system(cmd);
-            
-            snprintf(cmd, sizeof(cmd), "settings put system peak_refresh_rate %ld", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put system peak_refresh_rate %ld.0", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put global peak_refresh_rate %ld.0", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put secure peak_refresh_rate %ld.0", max_rate); system(cmd);
-            
-            snprintf(cmd, sizeof(cmd), "settings put system default_app_refresh_rate %ld", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put system other_apps_refresh_rate %ld", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put system tran_other_app_refresh_rate %ld", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put system tran_need_recovery_refresh_rate %ld", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put system tran_refresh_mode %ld", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put system tran_need_recovery_refresh_mode %ld", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put system last_tran_refresh_mode_in_refresh_setting %ld", max_rate); system(cmd);
-            snprintf(cmd, sizeof(cmd), "settings put system user_refresh_rate %ld", max_rate); system(cmd);
-        }
-
+        apply_display_settings(max_rate);
         resetprop_int("ro.surface_flinger.game_default_frame_rate_override", max_rate);
         resetprop("ro.surface_flinger.enable_frame_rate_override", "false");
     }
 
-    resetprop("vestia.zeta.is", "Cat");
-
     main_flux();
-    main_render(max_rate);
+    apply_hardware_render_tweaks(max_rate);
     facur_main(max_rate);
 
     if (prop_f) {
         fclose(prop_f);
-        system("resetprop -f /data/local/tmp/zeta.prop");
+        system("resetprop -f /data/local/tmp/zeta.prop 2>/dev/null");
         remove("/data/local/tmp/zeta.prop");
     }
 

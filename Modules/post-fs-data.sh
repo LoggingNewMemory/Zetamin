@@ -17,7 +17,25 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 # ==============================================================================
 
-# From EnCorinVest
+# ------------------------------------------------------------------------------
+# 1. SurfaceFlinger Shader Cache & HWUI Composition Tweaks (Static)
+# ------------------------------------------------------------------------------
+resetprop debug.sf.prime_shader_cache.solid_layers true
+resetprop debug.sf.prime_shader_cache.image_layers true
+resetprop debug.sf.prime_shader_cache.shadow_layers true
+resetprop debug.sf.disable_client_composition_cache 0
+resetprop debug.renderengine.backend skiaglthreaded
+resetprop debug.hwui.skia_atrace_enabled false
+
+# ------------------------------------------------------------------------------
+# 2. Frame Rate Enforcement & Game Refresh Rate Overrides (Static)
+# ------------------------------------------------------------------------------
 resetprop debug.graphics.game_default_frame_rate.disabled true
 resetprop sys.surfaceflinger.idle_reduce_framerate_enable no
 resetprop ro.surface_flinger.enable_frame_rate_override false
+resetprop ro.surface_flinger.use_content_detection_for_refresh_rate false
+
+# ------------------------------------------------------------------------------
+# 3. Signature Identification
+# ------------------------------------------------------------------------------
+resetprop vestia.zeta.is Cat
