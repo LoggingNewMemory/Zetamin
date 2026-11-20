@@ -29,11 +29,18 @@ resetprop debug.sf.use_phase_offsets_as_durations 1
 resetprop ro.sf.disable_triple_buffer 0
 resetprop ro.surface_flinger.use_context_priority true
 resetprop ro.surface_flinger.max_frame_buffer_acquired_buffers 3
+resetprop ro.surface_flinger.support_kernel_idle_timer false
+resetprop ro.surface_flinger.force_hwc_copy_for_virtual_displays true
+resetprop ro.surface_flinger.use_smart_90_for_video false
+resetprop ro.surface_flinger.set_display_power_timer_ms 0
+resetprop ro.surface_flinger.set_touch_timer_ms 180
+resetprop ro.surface_flinger.set_idle_timer_ms 180
 
 # ------------------------------------------------------------------------------
 # 2. RenderEngine & HWUI Rendering Acceleration
 # ------------------------------------------------------------------------------
 resetprop debug.egl.hw 1
+resetprop debug.egl.swapinterval 1
 resetprop debug.renderengine.backend skiaglthreaded
 resetprop debug.renderengine.restore_blur_step false
 resetprop debug.hwui.skia_atrace_enabled false
