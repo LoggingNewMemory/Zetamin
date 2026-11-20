@@ -208,6 +208,8 @@ void facur_main(long max_rate) {
         "debug.sf.high_fps_late_phase_offset_ns", "debug.sf.late_phase_offset_ns"
     };
     for (int i = 0; i < 6; i++) resetprop_int(props_h[i], val_h);
+
+    resetprop("debug.sf.use_phase_offsets_as_durations", "1");
 }
 
 // ==============================================================================
@@ -375,6 +377,12 @@ void apply_hardware_render_tweaks(long max_rate) {
            "for sf_tid in $(ls /proc/$sf_pid/task/ 2>/dev/null); do "
            "chrt -f -p 2 $sf_tid 2>/dev/null; "
            "done; done");
+
+    // Dynamic SurfaceFlinger
+    resetprop("debug.sf.latch_unsignaled", "1");
+    resetprop("debug.hwui.use_hint_manager", "true");
+    resetprop("debug.sf.enable_adpf_cpu_hint", "true");
+    resetprop("debug.egl.swapinterval", "1");
 
     // Google Android Dynamic Performance Framework (ADPF) & Graphics Consistency Overrides
     system("device_config override game android.os.adpf_hwui_gpu true 2>/dev/null");
