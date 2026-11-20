@@ -240,11 +240,20 @@ void apply_hardware_render_tweaks(long max_rate) {
         write_val("/sys/kernel/debug/tracing/events/mtk_events/enable", "0");
     }
 
+    // Disable MediaTek GPU clock aging degradation derate
+    if (access("/proc/gpufreq", F_OK) != -1) {
+        write_val("/proc/gpufreq/gpufreq_aging_enable", "0");
+    }
+    if (access("/proc/gpufreqv2", F_OK) != -1) {
+        write_val("/proc/gpufreqv2/aging_mode", "disable");
+    }
+
     // optimize_pvr_settings
     const char* pvr = "/sys/module/pvrsrvkm/parameters";
     if (access(pvr, F_OK) != -1) {
         write_val_dir(pvr, "HTBufferSizeInKB", "512");
         write_val_dir(pvr, "EnableFWContextSwitch", "1");
+        write_val_dir(pvr, "DisableClockGating", "1");
         write_val_dir(pvr, "gPVRDebugLevel", "0");
         write_val_dir(pvr, "gpu_dvfs_enable", "1");
         system("for p in $(find /sys/kernel/debug/tracing/events/pvr_fence -name 'enable' 2>/dev/null); do echo \"0\" > \"$p\"; done");
@@ -333,15 +342,26 @@ void apply_hardware_render_tweaks(long max_rate) {
     }
 
     // optimize_task_cgroup_nice
-    // Keep critical UI rendering, compositor, and display fence threads unrestricted
+    // Keep critical UI rendering, compositor, and display fence threads unrestricted in root cpuset
     change_task_cgroup("surfaceflinger", "", "cpuset");
     change_task_cgroup("composer|hwcomposer", "", "cpuset");
+    change_task_cgroup("gpuservice", "", "cpuset");
     change_task_cgroup("mtk_drm_disp_id|crtc_|disp_feature", "", "cpuset");
     change_task_cgroup("ged_|kfps", "", "cpuset");
-    change_task_cgroup("system_server", "foreground", "cpuset");
+    change_task_cgroup("system_server", "", "cpuset");
     change_task_cgroup("netd|allocator", "foreground", "cpuset");
     // Background worker & media decoding helpers only
     change_task_cgroup("hardware.media.c2|vdec_ipi_recv|dsp_send_thread|hif_thread|rx_thread", "background", "cpuset");
+
+    // Google Android Dynamic Performance Framework (ADPF) & Graphics Consistency Overrides
+    system("device_config override game android.os.adpf_hwui_gpu true 2>/dev/null");
+    system("device_config override game android.os.adpf_prefer_power_efficiency false 2>/dev/null");
+    system("device_config override game android.os.adpf_fmq_eager_send true 2>/dev/null");
+    system("device_config override game android.os.adpf_obtainview_boost true 2>/dev/null");
+    system("device_config override game android.os.adpf_measure_during_input_event_boost true 2>/dev/null");
+    system("device_config override game android.server.app.disable_game_mode_when_app_top false 2>/dev/null");
+    system("device_config override core_graphics com.android.graphics.surfaceflinger.flags.use_known_refresh_rate_for_fps_consistency true 2>/dev/null");
+    system("device_config override core_graphics com.android.graphics.surfaceflinger.flags.frame_rate_category_mrr true 2>/dev/null");
 }
 
 // ==============================================================================

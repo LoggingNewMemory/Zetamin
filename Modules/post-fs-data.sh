@@ -18,17 +18,36 @@
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# 1. SurfaceFlinger Shader Cache & HWUI Composition Tweaks (Static)
+# 1. SurfaceFlinger Low-Latency & Gaming Pipeline
 # ------------------------------------------------------------------------------
+resetprop debug.sf.latch_unsignaled 1
+resetprop debug.sf.set_binder_thread_rt 1
+resetprop debug.sf.multithreaded_present 1
+resetprop debug.sf.use_frame_rate_priority 1
+resetprop debug.sf.no_vsyncs_on_screen_off 1
+resetprop debug.sf.use_phase_offsets_as_durations 1
+resetprop ro.sf.disable_triple_buffer 0
+resetprop ro.surface_flinger.use_context_priority true
+resetprop ro.surface_flinger.max_frame_buffer_acquired_buffers 3
+
+# ------------------------------------------------------------------------------
+# 2. RenderEngine & HWUI Rendering Acceleration
+# ------------------------------------------------------------------------------
+resetprop debug.egl.hw 1
+resetprop debug.renderengine.backend skiaglthreaded
+resetprop debug.renderengine.restore_blur_step false
+resetprop debug.hwui.skia_atrace_enabled false
+resetprop debug.hwui.use_buffer_age true
+resetprop debug.hwui.use_partial_updates true
+resetprop debug.hwui.early_preload_gl_context true
+resetprop debug.hwui.skip_eglmanager_telemetry true
 resetprop debug.sf.prime_shader_cache.solid_layers true
 resetprop debug.sf.prime_shader_cache.image_layers true
 resetprop debug.sf.prime_shader_cache.shadow_layers true
 resetprop debug.sf.disable_client_composition_cache 0
-resetprop debug.renderengine.backend skiaglthreaded
-resetprop debug.hwui.skia_atrace_enabled false
 
 # ------------------------------------------------------------------------------
-# 2. Frame Rate Enforcement & Game Refresh Rate Overrides (Static)
+# 3. Frame Rate Enforcement & Game Refresh Rate Overrides
 # ------------------------------------------------------------------------------
 resetprop debug.graphics.game_default_frame_rate.disabled true
 resetprop sys.surfaceflinger.idle_reduce_framerate_enable no
@@ -36,6 +55,18 @@ resetprop ro.surface_flinger.enable_frame_rate_override false
 resetprop ro.surface_flinger.use_content_detection_for_refresh_rate false
 
 # ------------------------------------------------------------------------------
-# 3. Signature Identification
+# 4. Touch Responsiveness & Real-Time Scheduling
+# ------------------------------------------------------------------------------
+resetprop ro.max.fling_velocity 10000
+resetprop sys.use_fifo_ui 1
+resetprop persist.vendor.pnpmgr.gamemode.enable 1
+resetprop sys.hwc.gpu_perf_mode 1
+resetprop vendor.perf.framepacing.enable 1
+resetprop vendor.perf.gestureflingboost.enable true
+resetprop vendor.perf.workloadclassifier.enable true
+resetprop vendor.boostfwk.scroll.policy.mode 1
+
+# ------------------------------------------------------------------------------
+# 5. Signature Identification
 # ------------------------------------------------------------------------------
 resetprop vestia.zeta.is Cat
