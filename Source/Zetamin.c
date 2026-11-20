@@ -240,6 +240,7 @@ void apply_hardware_render_tweaks(long max_rate) {
         write_val_dir(ged, "gpu_debug_enable", "0");
         write_val("/sys/devices/platform/gpu/dvfs_enable", "1");
         write_val("/sys/kernel/debug/tracing/events/mtk_events/enable", "0");
+        write_val("/sys/kernel/ged/hal/dcs_mode", "1");
     }
 
     // Disable MediaTek GPU clock aging degradation derate
@@ -253,6 +254,8 @@ void apply_hardware_render_tweaks(long max_rate) {
     // optimize_pvr_settings
     const char* pvr = "/sys/module/pvrsrvkm/parameters";
     if (access(pvr, F_OK) != -1) {
+        write_val_dir(pvr, "gpu_power", "2");
+        write_val_dir(pvr, "EmuMaxFreq", "2");
         write_val_dir(pvr, "HTBufferSizeInKB", "512");
         write_val_dir(pvr, "EnableFWContextSwitch", "1");
         write_val_dir(pvr, "DisableClockGating", "1");
@@ -288,6 +291,7 @@ void apply_hardware_render_tweaks(long max_rate) {
         
         write_val("/sys/kernel/debug/kgsl/kgsl-3d0/profiling/enable", "0");
         write_val("/sys/module/adreno_idler/parameters/adreno_idler_active", "0");
+        write_val("/sys/kernel/debug/sde_rotator0/clk_always_on", "1");
     }
 
     // EAS (Energy Aware Scheduling) stune for legacy kernels
@@ -307,6 +311,10 @@ void apply_hardware_render_tweaks(long max_rate) {
     }
     write_val("/proc/sys/kernel/sched_util_clamp_min", "0");
 
+    // Touch Boost for Display & Input Responsiveness (MediaTek pnpmgr & Qualcomm msm_performance)
+    write_val("/sys/power/pnpmgr/touch_boost", "1");
+    write_val("/sys/module/msm_performance/parameters/touchboost", "1");
+
     // optimize_fpsgo (MediaTek)
     // Modern MediaTek kernels (5.4/5.10+) use mtk_fpsgo parameter nodes
     const char* mtk_fpsgo = "/sys/module/mtk_fpsgo/parameters";
@@ -321,6 +329,12 @@ void apply_hardware_render_tweaks(long max_rate) {
         write_val_dir(fpsgo, "common/fpsgo_enable", "1");
         write_val_dir(fpsgo, "fstb/margin_mode", "1");
         write_val_dir(fpsgo, "fstb/margin_mode_gpu", "1");
+    }
+    const char* fpsgo_common = "/sys/kernel/debug/fpsgo/common";
+    if (access(fpsgo_common, F_OK) != -1) {
+        write_val_dir(fpsgo_common, "fpsgo_enable", "1");
+        write_val_dir(fpsgo_common, "rescue_enable_by_pid", "1");
+        write_val_dir(fpsgo_common, "force_onoff", "1");
     }
 
     // optimize_unisoc_driver (Spreadtrum)

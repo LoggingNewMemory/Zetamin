@@ -35,6 +35,7 @@ resetprop ro.surface_flinger.use_smart_90_for_video false
 resetprop ro.surface_flinger.set_display_power_timer_ms 0
 resetprop ro.surface_flinger.set_touch_timer_ms 180
 resetprop ro.surface_flinger.set_idle_timer_ms 180
+resetprop debug.sf.enable_adpf_cpu_hint true
 
 # ------------------------------------------------------------------------------
 # 2. RenderEngine & HWUI Rendering Acceleration
@@ -44,6 +45,8 @@ resetprop debug.egl.swapinterval 1
 resetprop debug.renderengine.backend skiaglthreaded
 resetprop debug.renderengine.restore_blur_step false
 resetprop debug.hwui.skia_atrace_enabled false
+resetprop debug.hwui.initialize_gl_always true
+resetprop debug.hwui.use_hint_manager true
 resetprop debug.hwui.use_buffer_age true
 resetprop debug.hwui.use_partial_updates true
 resetprop debug.hwui.early_preload_gl_context true
