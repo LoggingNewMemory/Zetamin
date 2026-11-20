@@ -22,7 +22,6 @@
 # ------------------------------------------------------------------------------
 resetprop debug.sf.set_binder_thread_rt 1
 resetprop debug.sf.use_frame_rate_priority 1
-resetprop debug.sf.no_vsyncs_on_screen_off 1
 resetprop debug.sf.enable_adpf_cpu_hint true
 resetprop ro.sf.disable_triple_buffer 0
 resetprop ro.surface_flinger.use_context_priority true
