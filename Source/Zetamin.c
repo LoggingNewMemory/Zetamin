@@ -373,9 +373,9 @@ void apply_hardware_render_tweaks(long max_rate) {
 
     // SurfaceFlinger Compositor RT FIFO Priority (scheduler_policy fifo 2)
     system("for sf_pid in $(pidof surfaceflinger); do "
-           "chrt -f -p 2 $sf_pid 2>/dev/null; "
+           "chrt -f -p $sf_pid 2 2>/dev/null; "
            "for sf_tid in $(ls /proc/$sf_pid/task/ 2>/dev/null); do "
-           "chrt -f -p 2 $sf_tid 2>/dev/null; "
+           "chrt -f -p $sf_tid 2 2>/dev/null; "
            "done; done");
 
     // Dynamic SurfaceFlinger
@@ -383,23 +383,6 @@ void apply_hardware_render_tweaks(long max_rate) {
     resetprop("debug.hwui.use_hint_manager", "true");
     resetprop("debug.sf.enable_adpf_cpu_hint", "true");
     resetprop("debug.egl.swapinterval", "1");
-
-    // Google Android Dynamic Performance Framework (ADPF) & Graphics Consistency Overrides
-    system("device_config override game android.os.adpf_hwui_gpu true 2>/dev/null");
-    system("device_config override game android.os.adpf_prefer_power_efficiency false 2>/dev/null");
-    system("device_config override game android.os.adpf_fmq_eager_send true 2>/dev/null");
-    system("device_config override game android.os.adpf_obtainview_boost true 2>/dev/null");
-    system("device_config override game android.os.adpf_measure_during_input_event_boost true 2>/dev/null");
-    system("device_config override game android.server.app.disable_game_mode_when_app_top false 2>/dev/null");
-    system("device_config override core_graphics com.android.graphics.surfaceflinger.flags.use_known_refresh_rate_for_fps_consistency true 2>/dev/null");
-    system("device_config override core_graphics com.android.graphics.surfaceflinger.flags.frame_rate_category_mrr true 2>/dev/null");
-    system("device_config override core_graphics com.android.graphics.surfaceflinger.flags.commit_not_composited false 2>/dev/null");
-    system("device_config override core_graphics com.android.graphics.surfaceflinger.flags.cache_when_source_crop_layer_only_moved true 2>/dev/null");
-    system("device_config override core_graphics com.android.graphics.surfaceflinger.flags.latch_unsignaled_with_auto_refresh_changed true 2>/dev/null");
-    system("device_config override core_graphics com.android.graphics.surfaceflinger.flags.add_sf_skipped_frames_to_trace false 2>/dev/null");
-    system("device_config override core_graphics com.android.graphics.surfaceflinger.flags.vrr_bugfix_24q4 true 2>/dev/null");
-    system("device_config override core_graphics com.android.graphics.surfaceflinger.flags.allow_n_vsyncs_in_targeter true 2>/dev/null");
-    system("device_config override window_surfaces com.android.window.flags.set_sc_properties_in_client true 2>/dev/null");
 }
 
 // ==============================================================================

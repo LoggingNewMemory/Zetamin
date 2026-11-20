@@ -18,33 +18,7 @@
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# 1. Revert Persistent Device Config Overrides
-# ------------------------------------------------------------------------------
-revert_device_config() {
-    # Game & ADPF
-    device_config delete game android.os.adpf_hwui_gpu 2>/dev/null
-    device_config delete game android.os.adpf_prefer_power_efficiency 2>/dev/null
-    device_config delete game android.os.adpf_fmq_eager_send 2>/dev/null
-    device_config delete game android.os.adpf_obtainview_boost 2>/dev/null
-    device_config delete game android.os.adpf_measure_during_input_event_boost 2>/dev/null
-    device_config delete game android.server.app.disable_game_mode_when_app_top 2>/dev/null
-
-    # Core Graphics & SurfaceFlinger
-    device_config delete core_graphics com.android.graphics.surfaceflinger.flags.use_known_refresh_rate_for_fps_consistency 2>/dev/null
-    device_config delete core_graphics com.android.graphics.surfaceflinger.flags.frame_rate_category_mrr 2>/dev/null
-    device_config delete core_graphics com.android.graphics.surfaceflinger.flags.commit_not_composited 2>/dev/null
-    device_config delete core_graphics com.android.graphics.surfaceflinger.flags.cache_when_source_crop_layer_only_moved 2>/dev/null
-    device_config delete core_graphics com.android.graphics.surfaceflinger.flags.latch_unsignaled_with_auto_refresh_changed 2>/dev/null
-    device_config delete core_graphics com.android.graphics.surfaceflinger.flags.add_sf_skipped_frames_to_trace 2>/dev/null
-    device_config delete core_graphics com.android.graphics.surfaceflinger.flags.vrr_bugfix_24q4 2>/dev/null
-    device_config delete core_graphics com.android.graphics.surfaceflinger.flags.allow_n_vsyncs_in_targeter 2>/dev/null
-
-    # Window Surfaces
-    device_config delete window_surfaces com.android.window.flags.set_sc_properties_in_client 2>/dev/null
-}
-
-# ------------------------------------------------------------------------------
-# 2. Revert Persistent Display & Refresh Rate Settings
+# Revert Persistent Display & Refresh Rate Settings
 # ------------------------------------------------------------------------------
 revert_display_settings() {
     # System settings
@@ -78,7 +52,7 @@ revert_display_settings() {
 }
 
 # ------------------------------------------------------------------------------
-# 3. Revert Persistent System Properties
+# Revert Persistent System Properties
 # ------------------------------------------------------------------------------
 revert_persistent_props() {
     resetprop -p --delete persist.vendor.pnpmgr.gamemode.enable 2>/dev/null
@@ -86,20 +60,19 @@ revert_persistent_props() {
 }
 
 # ------------------------------------------------------------------------------
-# 4. Cleanup Leftover Temporary Files
+# Cleanup Leftover Temporary Files
 # ------------------------------------------------------------------------------
 cleanup_temp_files() {
     rm -f /data/local/tmp/zeta.prop 2>/dev/null
 }
 
 # Execute Cleanup Procedures
-revert_device_config
 revert_display_settings
 revert_persistent_props
 cleanup_temp_files
 
 # ------------------------------------------------------------------------------
-# 5. Standard Magisk File Cleanup
+# Standard Magisk File Cleanup
 # ------------------------------------------------------------------------------
 if [ -f "$INFO" ]; then
     while read -r LINE; do
